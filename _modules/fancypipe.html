@@ -1,0 +1,959 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>fancypipe &mdash; FancyPipe 1.0 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/site.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="FancyPipe 1.0 documentation" href="../index.html" />
+    <link rel="up" title="Module code" href="index.html" /> 
+  </head>
+  <body>
+<div style="background-color: white; text-align: left; padding: 10px 10px 15px 15px">
+<a href="../index.html">
+<img src="../_static/FancyPipe.png" border="0" alt="FancyPipe"/></a>
+</div>
+
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../index.html">FancyPipe 1.0 documentation</a> &raquo;</li>
+          <li><a href="index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for fancypipe</h1><div class="highlight"><pre>
+<span class="c"># FancyPipe</span>
+<span class="c"># ---------</span>
+<span class="c"># The FancyPipe Engine is a python package that takes care of those</span>
+<span class="c"># aspects of complex data processing pipelines that would otherwise </span>
+<span class="c"># distract you from your main job: the design of the processing steps.</span>
+<span class="c">#</span>
+<span class="c"># FancyPipe takes care of</span>
+<span class="c"># * command line parsing</span>
+<span class="c"># * logging to dynamic html-file and console</span>
+<span class="c"># * parallel execution</span>
+<span class="c"># * temporary file management</span>
+<span class="c"># * error handling</span>
+<span class="c"># * reading parameters from a configuration file</span>
+<span class="c">#</span>
+<span class="c"># To use FancyPipe effectively, you need to wrap your processing steps </span>
+<span class="c"># as FancyNode or FancyModule classes, and define input-output </span>
+<span class="c"># connections between nodes.</span>
+
+<span class="c"># to do: </span>
+<span class="c"># - json RPC output</span>
+<span class="c"># - support positional command line arguments</span>
+
+<span class="kn">import</span> <span class="nn">os</span><span class="o">,</span><span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">os.path</span> <span class="kn">as</span> <span class="nn">op</span>
+<span class="kn">import</span> <span class="nn">argparse</span><span class="o">,</span> <span class="nn">subprocess</span>
+<span class="kn">import</span> <span class="nn">tempfile</span><span class="o">,</span> <span class="nn">datetime</span><span class="o">,</span> <span class="nn">json</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">multiprocessing</span><span class="o">,</span> <span class="nn">Queue</span>
+
+<div class="viewcode-block" id="assertFile"><a class="viewcode-back" href="../classesmethods.html#fancypipe.assertFile">[docs]</a><span class="k">def</span> <span class="nf">assertFile</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot; Assert that the input is an existing file. &quot;&quot;&quot;</span>
+  <span class="k">if</span> <span class="ow">not</span> <span class="n">op</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">s</span><span class="p">):</span> <span class="k">raise</span> <span class="ne">AssertionError</span><span class="p">(</span><span class="s">&#39;String &quot;{}&quot; is not an existing file.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">s</span><span class="p">))</span>
+  <span class="k">return</span> <span class="n">s</span>
+</div>
+<div class="viewcode-block" id="assertDir"><a class="viewcode-back" href="../classesmethods.html#fancypipe.assertDir">[docs]</a><span class="k">def</span> <span class="nf">assertDir</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot; Assert that the input is an existing directory. &quot;&quot;&quot;</span>
+  <span class="k">if</span> <span class="ow">not</span> <span class="n">op</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">s</span><span class="p">):</span> <span class="k">raise</span> <span class="ne">AssertionError</span><span class="p">(</span><span class="s">&#39;String &quot;{}&quot; is not an existing directory.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">s</span><span class="p">))</span>
+  <span class="k">return</span> <span class="n">s</span>
+</div>
+<div class="viewcode-block" id="assertList"><a class="viewcode-back" href="../classesmethods.html#fancypipe.assertList">[docs]</a><span class="k">def</span> <span class="nf">assertList</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot; Assert that the input is a list or tuple. &quot;&quot;&quot;</span>
+  <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">s</span><span class="p">,</span><span class="nb">str</span><span class="p">):</span> 
+    <span class="k">try</span><span class="p">:</span>
+      <span class="n">s</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+    <span class="k">except</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">AssertionError</span><span class="p">(</span><span class="s">&#39;String &quot;{}&quot; cannot be json-decoded.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">s</span><span class="p">))</span>
+  <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">s</span><span class="p">,(</span><span class="nb">list</span><span class="p">,</span><span class="nb">tuple</span><span class="p">)):</span> <span class="k">raise</span> <span class="ne">AssertionError</span><span class="p">(</span><span class="s">&#39;Variable &quot;{}&quot; is not a list.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">s</span><span class="p">))</span>
+  <span class="k">return</span> <span class="n">s</span>
+</div>
+<div class="viewcode-block" id="assertDict"><a class="viewcode-back" href="../classesmethods.html#fancypipe.assertDict">[docs]</a><span class="k">def</span> <span class="nf">assertDict</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot; Assert that the input is a dictionary. &quot;&quot;&quot;</span>
+  <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">s</span><span class="p">,</span><span class="nb">str</span><span class="p">):</span> 
+    <span class="k">try</span><span class="p">:</span>
+      <span class="n">s</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="s">&#39;execute&#39;</span><span class="p">])</span>
+    <span class="k">except</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">AssertionError</span><span class="p">(</span><span class="s">&#39;String &quot;{}&quot; cannot be json-decoded.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">s</span><span class="p">))</span>
+  <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">s</span><span class="p">,</span><span class="nb">dict</span><span class="p">):</span> <span class="k">raise</span> <span class="ne">AssertionError</span><span class="p">(</span><span class="s">&#39;Variable &quot;{}&quot; is not a dictionary.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">s</span><span class="p">))</span>
+  <span class="k">return</span> <span class="n">s</span>
+</div>
+<div class="viewcode-block" id="assertExec"><a class="viewcode-back" href="../classesmethods.html#fancypipe.assertExec">[docs]</a><span class="k">def</span> <span class="nf">assertExec</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot; Assert that the input can be executed and return the full path to the executable. &quot;&quot;&quot;</span>
+  <span class="kn">import</span> <span class="nn">os</span>
+  <span class="k">def</span> <span class="nf">is_exe</span><span class="p">(</span><span class="n">fpath</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">fpath</span><span class="p">)</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">access</span><span class="p">(</span><span class="n">fpath</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">X_OK</span><span class="p">)</span>
+
+  <span class="n">fpath</span><span class="p">,</span><span class="n">fname</span> <span class="o">=</span> <span class="n">op</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+  <span class="k">if</span> <span class="n">fpath</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">is_exe</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">s</span>
+  <span class="k">else</span><span class="p">:</span>
+    <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s">&quot;PATH&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">pathsep</span><span class="p">):</span>
+      <span class="n">path</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s">&#39;&quot;&#39;</span><span class="p">)</span>
+      <span class="n">exe_file</span> <span class="o">=</span> <span class="n">op</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span><span class="n">s</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">is_exe</span><span class="p">(</span><span class="n">exe_file</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">exe_file</span>
+  <span class="k">raise</span> <span class="ne">AssertionError</span><span class="p">(</span><span class="s">&#39;Cannot find executable command &quot;{}&quot;.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">s</span><span class="p">))</span>
+
+<span class="c">## Deprecated: just use FancyOutputFile(...).</span></div>
+<div class="viewcode-block" id="flagOutfile"><a class="viewcode-back" href="../classesmethods.html#fancypipe.flagOutfile">[docs]</a><span class="k">def</span> <span class="nf">flagOutfile</span><span class="p">(</span><span class="n">v</span><span class="p">):</span>
+  <span class="k">return</span> <span class="n">FancyOutputFile</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+
+<span class="c">## Use this class to indicate that an input represents an outputfile.</span>
+<span class="c">## In recycling mode, fancypipe will check whether the file can be recycled.</span></div>
+<div class="viewcode-block" id="FancyOutputFile"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyOutputFile">[docs]</a><span class="k">class</span> <span class="nc">FancyOutputFile</span><span class="p">(</span><span class="nb">str</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">s</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">s</span><span class="p">,</span><span class="s">&#39;autoclean&#39;</span><span class="p">):</span> <span class="bp">self</span><span class="o">.</span><span class="n">autoclean</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">autoclean</span>
+<span class="c">#endclass</span>
+  </div>
+<span class="k">class</span> <span class="nc">_FancyAutoclean</span><span class="p">:</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">f</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">f</span> <span class="o">=</span> <span class="n">f</span>
+  <span class="k">def</span> <span class="nf">__del__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">print</span> <span class="s">&#39;Future: Removing file {}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">f</span><span class="p">)</span>
+    <span class="c">#os.remove(self.f)      </span>
+
+<span class="c">## Use this class to indicate that a string represents a temporary file,</span>
+<span class="c">## that can be removed when it is no longer referenced.</span>
+<div class="viewcode-block" id="FancyAutoclean"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyAutoclean">[docs]</a><span class="k">class</span> <span class="nc">FancyAutoclean</span><span class="p">(</span><span class="nb">str</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">f</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">autoclean</span> <span class="o">=</span> <span class="n">_FancyAutoclean</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+<span class="c">#endclass</span>
+
+
+<span class="c">## Used for output and error reporting</span></div>
+<div class="viewcode-block" id="FancyReport"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyReport">[docs]</a><span class="k">class</span> <span class="nc">FancyReport</span><span class="p">:</span>
+  <span class="kn">import</span> <span class="nn">traceback</span> <span class="kn">as</span> <span class="nn">tb</span>
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="FancyReport.error"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyReport.error">[docs]</a>  <span class="k">def</span> <span class="nf">error</span><span class="p">(</span><span class="n">s</span><span class="p">):</span> <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39;</span><span class="se">\033</span><span class="s">[1;31m{}</span><span class="se">\033</span><span class="s">[0m&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">s</span><span class="p">))</span></div>
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="FancyReport.success"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyReport.success">[docs]</a>  <span class="k">def</span> <span class="nf">success</span><span class="p">(</span><span class="o">*</span><span class="n">out</span><span class="p">,</span><span class="o">**</span><span class="n">kwout</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">out</span><span class="p">):</span>
+      <span class="n">result</span> <span class="o">=</span> <span class="n">FancyLog</span><span class="o">.</span><span class="n">stringifyList</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+      <span class="k">print</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">kwout</span><span class="p">:</span>
+      <span class="n">result</span> <span class="o">=</span> <span class="n">FancyLog</span><span class="o">.</span><span class="n">stringifyDict</span><span class="p">(</span><span class="n">kwout</span><span class="p">)</span>
+      <span class="k">print</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">result</span><span class="p">,</span><span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span></div>
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="FancyReport.traceback"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyReport.traceback">[docs]</a>  <span class="k">def</span> <span class="nf">traceback</span><span class="p">():</span>
+    <span class="n">exc_type</span><span class="p">,</span> <span class="n">exc_value</span><span class="p">,</span> <span class="n">exc_traceback</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">exc_info</span><span class="p">()</span> 
+    <span class="k">return</span> <span class="n">FancyReport</span><span class="o">.</span><span class="n">tb</span><span class="o">.</span><span class="n">format_exception</span><span class="p">(</span><span class="n">exc_type</span><span class="p">,</span> <span class="n">exc_value</span><span class="p">,</span> <span class="n">exc_traceback</span><span class="p">)</span></div>
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="FancyReport.fail"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyReport.fail">[docs]</a>  <span class="k">def</span> <span class="nf">fail</span><span class="p">(</span><span class="n">infile</span><span class="p">,</span><span class="n">code</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+    <span class="n">FancyReport</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s">&quot;Error in {}.</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">infile</span><span class="p">))</span>
+    <span class="n">FancyReport</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">FancyReport</span><span class="o">.</span><span class="n">traceback</span><span class="p">(),</span><span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">))</span>
+    <span class="k">print</span>
+    <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="n">code</span><span class="p">)</span>
+<span class="c">#endclass</span>
+
+
+<span class="c">## Used for logging to console and html-file.</span></div></div>
+<div class="viewcode-block" id="FancyLog"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyLog">[docs]</a><span class="k">class</span> <span class="nc">FancyLog</span><span class="p">:</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">logdir</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span><span class="n">loglevel</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">logdir</span> <span class="o">=</span> <span class="n">logdir</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">logfile</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="k">if</span> <span class="n">logdir</span><span class="p">:</span> 
+      <span class="k">if</span> <span class="ow">not</span> <span class="n">op</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">logdir</span><span class="p">):</span>
+        <span class="k">print</span> <span class="s">&#39;Creating new log directory &quot;{}&quot;.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">logdir</span><span class="p">)</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">logdir</span><span class="p">)</span>
+      <span class="n">logfilesdir</span> <span class="o">=</span> <span class="n">op</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">logdir</span><span class="p">,</span><span class="s">&#39;fancylog_files&#39;</span><span class="p">)</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="n">op</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">logfilesdir</span><span class="p">):</span>
+        <span class="k">print</span> <span class="s">&#39;Creating new log_files directory &quot;{}&quot;.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">logfilesdir</span><span class="p">)</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">logfilesdir</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">logdir</span> <span class="o">=</span> <span class="n">logdir</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">logfile</span> <span class="o">=</span> <span class="n">op</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">logdir</span><span class="p">,</span><span class="s">&#39;fancylog.js&#39;</span><span class="p">)</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="n">op</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">logfile</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">loglevel</span> <span class="o">=</span> <span class="n">loglevel</span>
+  
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="FancyLog.stringifyValue"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyLog.stringifyValue">[docs]</a>  <span class="k">def</span> <span class="nf">stringifyValue</span><span class="p">(</span><span class="n">v</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">v</span><span class="p">,</span><span class="s">&#39;tolist&#39;</span><span class="p">):</span> <span class="n">v</span> <span class="o">=</span> <span class="n">v</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,(</span><span class="nb">tuple</span><span class="p">,</span> <span class="nb">list</span><span class="p">)):</span> <span class="k">return</span> <span class="n">FancyLog</span><span class="o">.</span><span class="n">stringifyList</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,(</span><span class="nb">dict</span><span class="p">)):</span> <span class="k">return</span> <span class="n">FancyLog</span><span class="o">.</span><span class="n">stringifyDict</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,(</span><span class="nb">int</span><span class="p">,</span><span class="nb">bool</span><span class="p">,</span><span class="nb">float</span><span class="p">))</span> <span class="ow">or</span> <span class="n">v</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span> <span class="k">return</span> <span class="n">v</span>
+    <span class="k">return</span> <span class="s">&#39;{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+</div>
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="FancyLog.stringifyList"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyLog.stringifyList">[docs]</a>  <span class="k">def</span> <span class="nf">stringifyList</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">FancyLog</span><span class="o">.</span><span class="n">stringifyValue</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">args</span><span class="p">]</span>
+</div>
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="FancyLog.stringifyDict"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyLog.stringifyDict">[docs]</a>  <span class="k">def</span> <span class="nf">stringifyDict</span><span class="p">(</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">{</span> <span class="n">k</span><span class="p">:</span><span class="n">FancyLog</span><span class="o">.</span><span class="n">stringifyValue</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span><span class="n">v</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">iteritems</span><span class="p">()</span> <span class="p">}</span>
+    
+  <span class="c"># Add an entry to the logfile</span></div>
+<div class="viewcode-block" id="FancyLog.addEntry"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyLog.addEntry">[docs]</a>  <span class="k">def</span> <span class="nf">addEntry</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">logId</span><span class="p">,</span><span class="n">cmd</span><span class="p">,</span><span class="n">args</span><span class="p">,</span><span class="n">kwargs</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span><span class="n">commandLine</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="k">print</span> <span class="s">&#39;___</span><span class="se">\n</span><span class="s">Log({}) {}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">logId</span><span class="p">,</span><span class="n">cmd</span><span class="o">+</span><span class="s">&#39;: &#39;</span><span class="o">+</span><span class="n">title</span> <span class="k">if</span> <span class="n">title</span> <span class="k">else</span> <span class="n">cmd</span><span class="p">)</span>
+    <span class="c"># prepare args for json-dumping</span>
+    <span class="k">if</span> <span class="n">args</span><span class="p">:</span>
+      <span class="n">args</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stringifyList</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">kwargs</span><span class="p">:</span>
+      <span class="n">kwargs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stringifyDict</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">loglevel</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">commandLine</span><span class="p">:</span> 
+        <span class="k">print</span> <span class="s">&#39;Command line: {}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">commandLine</span><span class="p">)</span>
+      <span class="k">print</span> <span class="s">&#39;Arguments: {},{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">args</span><span class="p">,</span><span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">),</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">kwargs</span><span class="p">,</span><span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">))</span>
+    
+    <span class="c"># write to logfile</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">logfile</span><span class="p">:</span> <span class="k">return</span>
+    <span class="n">starttime</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
+    <span class="n">parentLogId</span> <span class="o">=</span> <span class="s">&#39;.&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">logId</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;.&#39;</span><span class="p">)[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">params</span> <span class="o">=</span> <span class="p">{</span>
+      <span class="s">&#39;id&#39;</span><span class="p">:</span> <span class="n">logId</span><span class="p">,</span>
+      <span class="s">&#39;parentId&#39;</span><span class="p">:</span> <span class="n">parentLogId</span><span class="p">,</span>
+      <span class="s">&#39;cmd&#39;</span><span class="p">:</span> <span class="n">cmd</span><span class="p">,</span>
+      <span class="s">&#39;args&#39;</span><span class="p">:</span> <span class="n">args</span><span class="p">,</span>
+      <span class="s">&#39;kwargs&#39;</span><span class="p">:</span> <span class="n">kwargs</span><span class="p">,</span>
+      <span class="s">&#39;timeStamp&#39;</span><span class="p">:</span> <span class="n">starttime</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()</span>
+    <span class="p">}</span>
+    <span class="k">if</span> <span class="n">title</span><span class="p">:</span>
+      <span class="n">params</span><span class="p">[</span><span class="s">&#39;title&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">title</span>
+    <span class="k">if</span> <span class="n">commandLine</span><span class="p">:</span>
+      <span class="n">params</span><span class="p">[</span><span class="s">&#39;commandLine&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">commandLine</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">logfile</span><span class="p">,</span><span class="s">&#39;a&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">log</span><span class="p">:</span>
+      <span class="n">log</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39;LOG.push(&#39;</span><span class="o">+</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">params</span><span class="p">,</span><span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span><span class="o">+</span><span class="s">&#39;)</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span>
+    </div>
+<div class="viewcode-block" id="FancyLog.attachMessage"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyLog.attachMessage">[docs]</a>  <span class="k">def</span> <span class="nf">attachMessage</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">logId</span><span class="p">,</span><span class="n">msg</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="n">params</span> <span class="o">=</span> <span class="p">{</span>
+      <span class="s">&#39;attachTo&#39;</span><span class="p">:</span><span class="n">logId</span><span class="p">,</span>
+      <span class="s">&#39;message&#39;</span><span class="p">:</span><span class="n">msg</span>
+    <span class="p">}</span>  
+    <span class="k">print</span> <span class="s">&#39;Node {} says: {}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">logId</span><span class="p">,</span><span class="n">msg</span><span class="p">)</span>
+    <span class="c"># write to logfile</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">logfile</span><span class="p">:</span> <span class="k">return</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">logfile</span><span class="p">,</span><span class="s">&#39;a&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">log</span><span class="p">:</span>
+      <span class="n">log</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39;LOG.push(&#39;</span><span class="o">+</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">params</span><span class="p">,</span><span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span><span class="o">+</span><span class="s">&#39;)</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="FancyLog.attachResult"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyLog.attachResult">[docs]</a>  <span class="k">def</span> <span class="nf">attachResult</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">logId</span><span class="p">,</span><span class="n">name</span><span class="p">,</span><span class="n">args</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span><span class="n">kwargs</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">tp</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="c"># write to logfile</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">logfile</span><span class="p">:</span> <span class="k">return</span>
+    <span class="n">params</span> <span class="o">=</span> <span class="p">{</span>
+      <span class="s">&#39;attachTo&#39;</span><span class="p">:</span><span class="n">logId</span><span class="p">,</span>
+      <span class="s">&#39;name&#39;</span><span class="p">:</span><span class="n">name</span><span class="p">,</span>
+      <span class="s">&#39;type&#39;</span><span class="p">:</span><span class="n">tp</span>
+    <span class="p">}</span>
+    <span class="k">if</span> <span class="n">tp</span><span class="o">==</span><span class="s">&#39;longtext&#39;</span><span class="p">:</span>
+      <span class="n">lineCount</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">lineCount</span><span class="o">&gt;</span><span class="mi">12</span><span class="p">:</span>
+        <span class="n">logfilesdir</span> <span class="o">=</span> <span class="n">op</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">logdir</span><span class="p">,</span><span class="s">&#39;fancylog_files&#39;</span><span class="p">)</span>
+        <span class="n">outfile</span> <span class="o">=</span> <span class="n">op</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">logfilesdir</span><span class="p">,</span><span class="s">&#39;stdout_{}.txt&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">logId</span><span class="p">))</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">outfile</span><span class="p">,</span><span class="s">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fp</span><span class="p">:</span>
+          <span class="n">fp</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">args</span><span class="p">))</span>      
+        <span class="n">args</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">6</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="s">&#39;... {} more lines ...&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">lineCount</span><span class="o">-</span><span class="mi">12</span><span class="p">)]</span> <span class="o">+</span> <span class="n">args</span><span class="p">[</span><span class="o">-</span><span class="mi">6</span><span class="p">:</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{</span>
+          <span class="s">&#39;name&#39;</span><span class="p">:</span><span class="n">outfile</span><span class="p">,</span>
+          <span class="s">&#39;href&#39;</span><span class="p">:</span><span class="s">&#39;file:///{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">outfile</span><span class="p">)</span>
+        <span class="p">}</span>
+    <span class="k">if</span> <span class="n">args</span><span class="p">:</span> <span class="n">params</span><span class="p">[</span><span class="s">&#39;args&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">FancyLog</span><span class="o">.</span><span class="n">stringifyList</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">kwargs</span><span class="p">:</span> <span class="n">params</span><span class="p">[</span><span class="s">&#39;kwargs&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">FancyLog</span><span class="o">.</span><span class="n">stringifyDict</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="n">params_json</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">params</span><span class="p">,</span><span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">);</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">logfile</span><span class="p">,</span><span class="s">&#39;a&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">log</span><span class="p">:</span>
+      <span class="n">log</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39;LOG.push(&#39;</span><span class="o">+</span><span class="n">params_json</span><span class="o">+</span><span class="s">&#39;)</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="FancyLog.reset"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyLog.reset">[docs]</a>  <span class="k">def</span> <span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">overwrite</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">logfile</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">op</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">logfile</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">overwrite</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&#39;Logfile &quot;{}&quot; already exists, use RESET to overwrite.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">logfile</span><span class="p">))</span>
+      <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">logfile</span><span class="p">,</span><span class="s">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">log</span><span class="p">:</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39;var LOG = [];</span><span class="se">\n\n</span><span class="s">&#39;</span><span class="p">)</span>
+      <span class="n">htmlsrc</span> <span class="o">=</span> <span class="n">op</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">op</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">__file__</span><span class="p">),</span><span class="s">&#39;fancylog.html&#39;</span><span class="p">)</span>
+      <span class="n">htmltgt</span> <span class="o">=</span> <span class="n">op</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">logdir</span><span class="p">,</span><span class="s">&#39;fancylog.html&#39;</span><span class="p">)</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="n">op</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">htmltgt</span><span class="p">):</span>
+        <span class="kn">import</span> <span class="nn">shutil</span>
+        <span class="n">shutil</span><span class="o">.</span><span class="n">copyfile</span><span class="p">(</span><span class="n">htmlsrc</span><span class="p">,</span><span class="n">htmltgt</span><span class="p">)</span>
+<span class="c">#endclass</span>
+
+
+<span class="c">## Used to keep track of temporary files. Status: scratch.</span></div></div>
+<div class="viewcode-block" id="FancyClean"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyClean">[docs]</a><span class="k">class</span> <span class="nc">FancyClean</span><span class="p">:</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">noCleanup</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">noCleanup</span> <span class="o">=</span> <span class="n">noCleanup</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">files</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">dirs</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    
+  <span class="k">def</span> <span class="nf">_addFile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">ff</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">ff</span><span class="p">)</span>
+
+<div class="viewcode-block" id="FancyClean.addNewFile"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyClean.addNewFile">[docs]</a>  <span class="k">def</span> <span class="nf">addNewFile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">f</span><span class="p">):</span>
+    <span class="n">f</span> <span class="o">=</span> <span class="n">op</span><span class="o">.</span><span class="n">realpath</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">op</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">f</span><span class="p">):</span> <span class="bp">self</span><span class="o">.</span><span class="n">_addFile</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+        </div>
+  <span class="k">def</span> <span class="nf">_addDir</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">dd</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">dirs</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">dd</span><span class="p">)</span>
+  
+<div class="viewcode-block" id="FancyClean.addCreateDir"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyClean.addCreateDir">[docs]</a>  <span class="k">def</span> <span class="nf">addCreateDir</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">d</span><span class="p">):</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="n">op</span><span class="o">.</span><span class="n">realpath</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+    <span class="n">create</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">while</span> <span class="ow">not</span> <span class="n">op</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">d</span><span class="p">):</span>
+      <span class="n">create</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+      <span class="n">head</span><span class="p">,</span><span class="n">tail</span> <span class="o">=</span> <span class="n">op</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+      <span class="n">d</span> <span class="o">=</span> <span class="n">head</span>
+    <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="nb">reversed</span><span class="p">(</span><span class="n">create</span><span class="p">):</span>
+      <span class="n">os</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_addDir</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="FancyClean.cleanup"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyClean.cleanup">[docs]</a>  <span class="k">def</span> <span class="nf">cleanup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">exclude</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">noCleanup</span><span class="p">:</span> <span class="k">return</span>
+    <span class="n">E</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">exclude</span><span class="p">:</span> 
+      <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">exclude</span><span class="p">:</span>
+        <span class="n">E</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">op</span><span class="o">.</span><span class="n">realpath</span><span class="p">(</span><span class="n">path</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">f</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">E</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+          <span class="k">print</span> <span class="s">&#39;DELETING FILE &quot;{}&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+          <span class="c">#os.remove(f)</span>
+        <span class="k">except</span><span class="p">:</span>
+          <span class="k">pass</span>
+    <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="nb">reversed</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dirs</span><span class="p">)):</span>
+      <span class="k">if</span> <span class="n">d</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">E</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+          <span class="k">print</span> <span class="s">&#39;REMOVING DIR &quot;{}&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+          <span class="c">#os.rmdir(d)</span>
+        <span class="k">except</span><span class="p">:</span>
+          <span class="k">pass</span>
+<span class="c">#endclass</span>
+
+
+<span class="c">## Used to load and keep track of configuration parameters.</span></div></div>
+<div class="viewcode-block" id="FancyConfig"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyConfig">[docs]</a><span class="k">class</span> <span class="nc">FancyConfig</span><span class="p">:</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">config</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="o">=</span> <span class="n">config</span>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="FancyConfig.etree_to_odict"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyConfig.etree_to_odict">[docs]</a>  <span class="k">def</span> <span class="nf">etree_to_odict</span><span class="p">(</span><span class="n">t</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="p">):</span>
+      <span class="n">od</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
+      <span class="k">for</span> <span class="n">ch</span> <span class="ow">in</span> <span class="n">t</span><span class="o">.</span><span class="n">iterchildren</span><span class="p">():</span>
+        <span class="n">od</span><span class="p">[</span><span class="n">ch</span><span class="o">.</span><span class="n">tag</span><span class="p">]</span> <span class="o">=</span> <span class="n">FancyConfig</span><span class="o">.</span><span class="n">etree_to_odict</span><span class="p">(</span><span class="n">ch</span><span class="p">)</span>
+      <span class="k">return</span> <span class="n">od</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">t</span><span class="o">.</span><span class="n">text</span>
+</div>
+  <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="FancyConfig.fromFile"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyConfig.fromFile">[docs]</a>  <span class="k">def</span> <span class="nf">fromFile</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span><span class="n">configFile</span><span class="p">):</span>
+    <span class="n">name</span><span class="p">,</span><span class="n">ext</span> <span class="o">=</span> <span class="n">op</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="n">configFile</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">ext</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s">&#39;.xml&#39;</span><span class="p">:</span>
+      <span class="kn">from</span> <span class="nn">lxml</span> <span class="kn">import</span> <span class="n">etree</span>
+      <span class="n">tree</span> <span class="o">=</span> <span class="n">etree</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">configFile</span><span class="p">)</span>
+      <span class="k">return</span> <span class="n">cls</span><span class="p">(</span><span class="n">FancyConfig</span><span class="o">.</span><span class="n">etree_to_odict</span><span class="p">(</span><span class="n">tree</span><span class="o">.</span><span class="n">getroot</span><span class="p">()))</span>
+    <span class="k">elif</span> <span class="n">ext</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s">&#39;.json&#39;</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">cls</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">configFile</span><span class="p">,</span> <span class="n">object_pairs_hook</span><span class="o">=</span><span class="n">OrderedDict</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&#39;Configuration file &quot;{}&quot; has an unrecognized format.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">configFile</span><span class="p">))</span>
+</div>
+  <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="FancyConfig.fromParent"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyConfig.fromParent">[docs]</a>  <span class="k">def</span> <span class="nf">fromParent</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span><span class="n">parentNode</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">parentNode</span><span class="o">.</span><span class="n">fancyConfig</span><span class="p">:</span>
+      <span class="n">config</span> <span class="o">=</span> <span class="n">parentNode</span><span class="o">.</span><span class="n">fancyConfig</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+      <span class="n">parentClass</span> <span class="o">=</span> <span class="n">parentNode</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span>
+      <span class="k">if</span> <span class="n">parentClass</span> <span class="ow">in</span> <span class="n">config</span><span class="p">:</span>
+        <span class="c"># overwrite defaults with className-specific defaults</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span><span class="n">v</span> <span class="ow">in</span> <span class="n">config</span><span class="p">[</span><span class="n">parentClass</span><span class="p">]</span><span class="o">.</span><span class="n">iteritems</span><span class="p">():</span> <span class="n">config</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span><span class="p">;</span>
+        <span class="n">config</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">parentClass</span><span class="p">)</span>
+      <span class="k">return</span> <span class="n">cls</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+    </div>
+<div class="viewcode-block" id="FancyConfig.classDefaults"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyConfig.classDefaults">[docs]</a>  <span class="k">def</span> <span class="nf">classDefaults</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">nodeClass</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="n">nodeClass</span><span class="p">]</span> <span class="k">if</span> <span class="n">nodeClass</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="k">else</span> <span class="p">{}</span>
+<span class="c">#endclass</span>
+
+
+<span class="c">## Indicates an outgoing link of output &lt;outKey&gt; of node &lt;node&gt;.</span></div></div>
+<div class="viewcode-block" id="FancyLink"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyLink">[docs]</a><span class="k">class</span> <span class="nc">FancyLink</span><span class="p">:</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">node</span><span class="p">,</span><span class="n">outKey</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">node</span> <span class="o">=</span> <span class="n">node</span> <span class="c"># list of FancyNodes</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">outKey</span> <span class="o">=</span> <span class="n">outKey</span> <span class="c"># output key</span>
+  
+  <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s">&#39;FancyLink&lt;{}[{}]&gt;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">node</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">outKey</span><span class="p">)</span>
+<span class="c">#endclass</span>
+  
+
+<span class="c">## Base class for node input/output, consisting of list and keyword arguments</span></div>
+<div class="viewcode-block" id="FancyArgs"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyArgs">[docs]</a><span class="k">class</span> <span class="nc">FancyArgs</span><span class="p">:</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="o">*</span><span class="n">args</span><span class="p">,</span><span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">args</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="n">kwargs</span>
+
+<div class="viewcode-block" id="FancyArgs.ready"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyArgs.ready">[docs]</a>  <span class="k">def</span> <span class="nf">ready</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">FancyList</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="p">)</span><span class="o">.</span><span class="n">ready</span><span class="p">()</span> <span class="ow">and</span> <span class="n">FancyDict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">)</span><span class="o">.</span><span class="n">ready</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="FancyArgs.sources"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyArgs.sources">[docs]</a>  <span class="k">def</span> <span class="nf">sources</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">FancyList</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="p">)</span><span class="o">.</span><span class="n">sources</span><span class="p">()</span> <span class="o">|</span> <span class="n">FancyDict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">)</span><span class="o">.</span><span class="n">sources</span><span class="p">()</span>
+</div>
+  <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">key</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">key</span><span class="p">,(</span><span class="nb">int</span><span class="p">,</span><span class="nb">long</span><span class="p">))</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+  <span class="k">def</span> <span class="nf">__setitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">key</span><span class="p">,</span><span class="n">val</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">key</span><span class="p">,(</span><span class="nb">int</span><span class="p">,</span><span class="nb">long</span><span class="p">)):</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">val</span>
+    <span class="k">else</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">val</span>
+    
+
+<span class="c">## Special case of FancyArgs, consisting of only a list.</span></div>
+<div class="viewcode-block" id="FancyList"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyList">[docs]</a><span class="k">class</span> <span class="nc">FancyList</span><span class="p">(</span><span class="nb">list</span><span class="p">,</span><span class="n">FancyArgs</span><span class="p">):</span>  
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">args</span><span class="p">):</span>
+    <span class="nb">list</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">args</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">args</span> <span class="o">=</span> <span class="bp">self</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="p">{}</span>
+
+<div class="viewcode-block" id="FancyList.ready"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyList.ready">[docs]</a>  <span class="k">def</span> <span class="nf">ready</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span><span class="n">v</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span><span class="n">FancyLink</span><span class="p">):</span> <span class="k">return</span> <span class="bp">False</span>
+      <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span><span class="n">FancyArgs</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">v</span><span class="o">.</span><span class="n">ready</span><span class="p">():</span> <span class="k">return</span> <span class="bp">False</span>
+    <span class="k">return</span> <span class="bp">True</span>
+</div>
+<div class="viewcode-block" id="FancyList.sources"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyList.sources">[docs]</a>  <span class="k">def</span> <span class="nf">sources</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">ans</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span><span class="n">v</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span><span class="n">FancyLink</span><span class="p">):</span> <span class="n">ans</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">v</span><span class="o">.</span><span class="n">node</span><span class="p">)</span>
+      <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span><span class="n">FancyArgs</span><span class="p">):</span> <span class="n">ans</span> <span class="o">|=</span> <span class="n">v</span><span class="o">.</span><span class="n">sources</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">ans</span>
+<span class="c">#endclass</span>
+
+
+<span class="c">## Special case of FancyArgs, consisting of only keyword arguments.</span></div></div>
+<div class="viewcode-block" id="FancyDict"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyDict">[docs]</a><span class="k">class</span> <span class="nc">FancyDict</span><span class="p">(</span><span class="nb">dict</span><span class="p">,</span><span class="n">FancyArgs</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="nb">dict</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="bp">self</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">args</span> <span class="o">=</span> <span class="p">[]</span>
+
+<div class="viewcode-block" id="FancyDict.ready"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyDict.ready">[docs]</a>  <span class="k">def</span> <span class="nf">ready</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span><span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">iteritems</span><span class="p">():</span>
+      <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span><span class="n">FancyLink</span><span class="p">):</span> <span class="k">return</span> <span class="bp">False</span>
+      <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span><span class="n">FancyArgs</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">v</span><span class="o">.</span><span class="n">ready</span><span class="p">():</span> <span class="k">return</span> <span class="bp">False</span>
+    <span class="k">return</span> <span class="bp">True</span>
+</div>
+<div class="viewcode-block" id="FancyDict.sources"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyDict.sources">[docs]</a>  <span class="k">def</span> <span class="nf">sources</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">ans</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span><span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">iteritems</span><span class="p">():</span>
+      <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span><span class="n">FancyLink</span><span class="p">):</span> <span class="n">ans</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">v</span><span class="o">.</span><span class="n">node</span><span class="p">)</span>
+      <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span><span class="n">FancyArgs</span><span class="p">):</span> <span class="n">ans</span> <span class="o">|=</span> <span class="n">v</span><span class="o">.</span><span class="n">sources</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">ans</span>
+<span class="c">#endclass</span>
+
+
+<span class="c">## Special case of FancyArgs, consisting of only keyword arguments, with preserved order.</span></div></div>
+<div class="viewcode-block" id="FancyOrderedDict"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyOrderedDict">[docs]</a><span class="k">class</span> <span class="nc">FancyOrderedDict</span><span class="p">(</span><span class="n">OrderedDict</span><span class="p">,</span><span class="n">FancyDict</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="n">OrderedDict</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="bp">self</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">args</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="c">#endclass</span>
+
+
+<span class="c">## FancyInput and FancyOutput have no special meaning, but improve</span>
+<span class="c">## readability when used to represent the input and output of a node.</span></div>
+<span class="n">FancyInput</span>  <span class="o">=</span> <span class="n">FancyArgs</span>
+<span class="n">FancyOutput</span> <span class="o">=</span> <span class="n">FancyArgs</span>
+
+<span class="c">## Base class for all pipeline nodes, has all features except </span>
+<span class="c">## calling the node from the command line.</span>
+<div class="viewcode-block" id="FancyNode"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyNode">[docs]</a><span class="k">class</span> <span class="nc">FancyNode</span><span class="p">:</span>
+  <span class="n">name</span> <span class="o">=</span> <span class="bp">None</span>
+  <span class="n">title</span> <span class="o">=</span> <span class="bp">None</span>
+  <span class="n">description</span> <span class="o">=</span> <span class="bp">None</span>
+  <span class="n">inputs</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s">&#39;tempdir&#39;</span><span class="p">:{</span><span class="s">&#39;default&#39;</span><span class="p">:</span><span class="bp">None</span><span class="p">,</span>
+      <span class="s">&#39;help&#39;</span><span class="p">:</span><span class="s">&#39;Temp directory, to store intermediate results.&#39;</span>
+    <span class="p">},</span>
+    <span class="s">&#39;logdir&#39;</span><span class="p">:{</span><span class="s">&#39;default&#39;</span><span class="p">:</span><span class="bp">None</span><span class="p">,</span>
+      <span class="s">&#39;help&#39;</span><span class="p">:</span><span class="s">&#39;Log directory, to store logfile (fancylog.js + fancylog.html) and store attachments.&#39;</span>
+    <span class="p">},</span>
+    <span class="s">&#39;loglevel&#39;</span><span class="p">:{</span><span class="s">&#39;type&#39;</span><span class="p">:</span><span class="nb">int</span><span class="p">,</span> <span class="s">&#39;default&#39;</span><span class="p">:</span><span class="mi">1</span><span class="p">,</span>
+      <span class="s">&#39;help&#39;</span><span class="p">:</span><span class="s">&#39;Log level, 1 for entries, 2 for standard output, 4 for data, 8 for extra.&#39;</span>
+    <span class="p">},</span>
+    <span class="s">&#39;logid&#39;</span><span class="p">:{</span><span class="s">&#39;default&#39;</span><span class="p">:</span><span class="s">&#39;1&#39;</span><span class="p">,</span>
+      <span class="s">&#39;help&#39;</span><span class="p">:</span><span class="s">&#39;Hierarchical identifier of the log entry (e.g. &quot;3.4.7&quot;). Use logId=INIT to create a new empty log (error if it exists), and logId=RESET to reset (overwrite) an existing log.&#39;</span>
+    <span class="p">},</span>
+    <span class="s">&#39;configfile&#39;</span><span class="p">:{</span><span class="s">&#39;default&#39;</span><span class="p">:</span><span class="bp">None</span><span class="p">,</span>
+      <span class="s">&#39;help&#39;</span><span class="p">:</span><span class="s">&#39;Configuration file (XML or JSON), to read default parameters from.&#39;</span>
+    <span class="p">},</span>
+    <span class="s">&#39;nocleanup&#39;</span><span class="p">:{</span><span class="s">&#39;action&#39;</span><span class="p">:</span><span class="s">&#39;store_true&#39;</span><span class="p">,</span> <span class="s">&#39;default&#39;</span><span class="p">:</span><span class="bp">False</span><span class="p">,</span>
+      <span class="s">&#39;help&#39;</span><span class="p">:</span><span class="s">&#39;Whether to cleanup intermediate results.&#39;</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">tempdir</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span><span class="n">fancyClean</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span><span class="n">fancyConfig</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span><span class="n">fancyLog</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span><span class="n">logId</span><span class="o">=</span><span class="s">&#39;1&#39;</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">tempdir</span>     <span class="o">=</span> <span class="n">tempdir</span> <span class="k">if</span> <span class="n">tempdir</span> <span class="k">else</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">gettempdir</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">fancyClean</span>  <span class="o">=</span> <span class="n">fancyClean</span> <span class="k">if</span> <span class="n">fancyClean</span> <span class="k">else</span> <span class="n">FancyClean</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">fancyClean</span><span class="o">.</span><span class="n">addCreateDir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tempdir</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">fancyConfig</span> <span class="o">=</span> <span class="n">fancyConfig</span> <span class="k">if</span> <span class="n">fancyConfig</span> <span class="k">else</span> <span class="bp">None</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">fancyLog</span>    <span class="o">=</span> <span class="n">fancyLog</span> <span class="k">if</span> <span class="n">fancyLog</span> <span class="k">else</span> <span class="n">FancyLog</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">logId</span> <span class="o">==</span> <span class="s">&#39;INIT&#39;</span> <span class="ow">or</span> <span class="n">logId</span> <span class="o">==</span> <span class="s">&#39;RESET&#39;</span><span class="p">:</span> 
+      <span class="n">fancyLog</span><span class="o">.</span><span class="n">reset</span><span class="p">(</span><span class="n">overwrite</span><span class="o">=</span><span class="p">(</span><span class="n">logId</span> <span class="o">==</span> <span class="s">&#39;RESET&#39;</span><span class="p">))</span>
+      <span class="n">logId</span> <span class="o">=</span> <span class="s">&#39;1&#39;</span><span class="p">;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">logId</span>     <span class="o">=</span> <span class="n">logId</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">numLogs</span>   <span class="o">=</span> <span class="mi">0</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">doRecycle</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fancyClean</span><span class="o">.</span><span class="n">noCleanup</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">doParallel</span> <span class="o">=</span> <span class="bp">True</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">myInput</span>   <span class="o">=</span> <span class="n">FancyInput</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">myOutput</span>  <span class="o">=</span> <span class="n">FancyOutput</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">outfiles</span>  <span class="o">=</span> <span class="bp">None</span> <span class="c"># outputs that are returned as files</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">requests</span>  <span class="o">=</span> <span class="p">{}</span> <span class="c"># (node,inKey) pairs that receive data from this node</span>
+    
+    <span class="c"># Prepare inputs from defaults and configuration file.</span>
+    <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">fancyConfig</span><span class="p">:</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fancyConfig</span><span class="o">.</span><span class="n">classDefaults</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">prepareInput</span><span class="p">([],</span><span class="bp">self</span><span class="o">.</span><span class="n">_parseInputs</span><span class="p">(</span><span class="n">kwargs</span><span class="p">))</span>
+  
+  <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s">&quot;</span><span class="si">%s</span><span class="s">[</span><span class="si">%s</span><span class="s">]&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">getName</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">logId</span><span class="p">)</span>
+
+  <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="FancyNode.fromParent"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyNode.fromParent">[docs]</a>  <span class="k">def</span> <span class="nf">fromParent</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span><span class="n">parent</span><span class="p">,</span><span class="n">tempsubdir</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span><span class="n">title</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="n">noCleanup</span> <span class="o">=</span> <span class="n">parent</span><span class="o">.</span><span class="n">fancyClean</span><span class="o">.</span><span class="n">noCleanup</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="p">{</span>
+      <span class="s">&#39;tempdir&#39;</span><span class="p">:</span> <span class="n">op</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">parent</span><span class="o">.</span><span class="n">tempdir</span><span class="p">,</span><span class="n">tempsubdir</span><span class="p">)</span> <span class="k">if</span> <span class="n">tempsubdir</span> <span class="k">else</span> <span class="n">parent</span><span class="o">.</span><span class="n">tempdir</span><span class="p">,</span>
+      <span class="s">&#39;fancyClean&#39;</span><span class="p">:</span> <span class="n">FancyClean</span><span class="p">(</span><span class="n">noCleanup</span><span class="p">),</span>
+      <span class="s">&#39;fancyConfig&#39;</span><span class="p">:</span> <span class="n">FancyConfig</span><span class="o">.</span><span class="n">fromParent</span><span class="p">(</span><span class="n">parent</span><span class="p">),</span>
+      <span class="s">&#39;fancyLog&#39;</span><span class="p">:</span> <span class="n">parent</span><span class="o">.</span><span class="n">fancyLog</span><span class="p">,</span>
+      <span class="s">&#39;logId&#39;</span><span class="p">:</span> <span class="n">parent</span><span class="o">.</span><span class="n">newChildLogId</span><span class="p">()</span>
+    <span class="p">}</span>
+    <span class="c"># Instantiate.</span>
+    <span class="bp">self</span> <span class="o">=</span> <span class="n">cls</span><span class="p">(</span><span class="o">**</span><span class="n">args</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">title</span><span class="p">:</span> 
+      <span class="bp">self</span><span class="o">.</span><span class="n">title</span> <span class="o">=</span> <span class="n">title</span>
+    <span class="k">return</span> <span class="bp">self</span>
+</div>
+<div class="viewcode-block" id="FancyNode.validateInputs"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyNode.validateInputs">[docs]</a>  <span class="k">def</span> <span class="nf">validateInputs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">args</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+  <span class="c"># Parse external inputs, from commandline or configfile.</span></div>
+  <span class="nd">@classmethod</span>
+  <span class="k">def</span> <span class="nf">_parseInputs</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span><span class="n">raw</span><span class="p">):</span>
+    <span class="k">if</span> <span class="s">&#39;inputs&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">cls</span><span class="o">.</span><span class="n">__dict__</span><span class="p">:</span> <span class="k">return</span> <span class="p">{}</span>
+    <span class="c"># positional arguments are ignored</span>
+    <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">key</span><span class="p">,</span><span class="n">inp</span> <span class="ow">in</span> <span class="n">cls</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">iteritems</span><span class="p">():</span>
+      <span class="c"># typecast</span>
+      <span class="n">tp</span> <span class="o">=</span> <span class="n">inp</span><span class="p">[</span><span class="s">&#39;type&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="s">&#39;type&#39;</span> <span class="ow">in</span> <span class="n">inp</span> <span class="k">else</span> <span class="nb">str</span>
+      <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">raw</span><span class="p">:</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">tp</span><span class="p">(</span><span class="n">raw</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">key</span><span class="p">))</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="s">&#39;default&#39;</span> <span class="ow">in</span> <span class="n">inp</span><span class="p">:</span>
+          <span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">inp</span><span class="p">[</span><span class="s">&#39;default&#39;</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">kwargs</span>
+  
+<div class="viewcode-block" id="FancyNode.newChildLogId"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyNode.newChildLogId">[docs]</a>  <span class="k">def</span> <span class="nf">newChildLogId</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">numLogs</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">logId</span><span class="o">+</span><span class="s">&#39;.&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">numLogs</span><span class="p">)</span>
+
+  <span class="c"># tempfile(F) returns tempdir/F, and registers F for cleanup after running main()</span></div>
+<div class="viewcode-block" id="FancyNode.tempfile"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyNode.tempfile">[docs]</a>  <span class="k">def</span> <span class="nf">tempfile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">f</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span><span class="n">ext</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">,</span><span class="n">autoclean</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">f</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+      <span class="kn">import</span> <span class="nn">string</span>
+      <span class="kn">import</span> <span class="nn">random</span>
+      <span class="n">rand8</span> <span class="o">=</span> <span class="s">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">SystemRandom</span><span class="p">()</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">string</span><span class="o">.</span><span class="n">ascii_letters</span> <span class="o">+</span> <span class="n">string</span><span class="o">.</span><span class="n">digits</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">8</span><span class="p">))</span>      
+      <span class="n">f</span> <span class="o">=</span> <span class="s">&#39;{}_{}{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="o">.</span><span class="n">lower</span><span class="p">(),</span><span class="n">rand8</span><span class="p">,</span><span class="n">ext</span><span class="p">)</span>
+    <span class="n">f</span> <span class="o">=</span> <span class="n">op</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tempdir</span><span class="p">,</span><span class="n">f</span><span class="p">)</span>
+    <span class="c"># DEPRECATED: self.fancyClean.addNewFile(f)</span>
+    <span class="k">if</span> <span class="n">autoclean</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span> <span class="n">autoclean</span> <span class="o">=</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">fancyClean</span><span class="o">.</span><span class="n">noCleanup</span>
+    <span class="k">return</span> <span class="n">FancyAutoclean</span><span class="p">(</span><span class="n">f</span><span class="p">)</span> <span class="k">if</span> <span class="n">autoclean</span> <span class="ow">and</span> <span class="n">f</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">op</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">f</span><span class="p">)</span> <span class="k">else</span> <span class="n">f</span>
+  </div>
+<div class="viewcode-block" id="FancyNode.getName"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyNode.getName">[docs]</a>  <span class="k">def</span> <span class="nf">getName</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span>
+    </div>
+<div class="viewcode-block" id="FancyNode.getCommandLine"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyNode.getCommandLine">[docs]</a>  <span class="k">def</span> <span class="nf">getCommandLine</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s">&#39;python runmodule.py {} [...]&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">)</span>
+
+  <span class="c"># Get an input.</span></div>
+<div class="viewcode-block" id="FancyNode.getInput"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyNode.getInput">[docs]</a>  <span class="k">def</span> <span class="nf">getInput</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">key</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">myInput</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+  <span class="c"># Set (update) the run-input.</span></div>
+<div class="viewcode-block" id="FancyNode.prepareInput"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyNode.prepareInput">[docs]</a>  <span class="k">def</span> <span class="nf">prepareInput</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">args</span><span class="p">,</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">myInput</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">myInput</span><span class="o">.</span><span class="n">kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
+
+  <span class="c"># Set (update) the run-input.</span></div>
+<div class="viewcode-block" id="FancyNode.setInput"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyNode.setInput">[docs]</a>  <span class="k">def</span> <span class="nf">setInput</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="o">*</span><span class="n">args</span><span class="p">,</span><span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">prepareInput</span><span class="p">(</span><span class="n">args</span><span class="p">,</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">outfiles</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">outputFiles</span><span class="p">()</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">outfiles</span><span class="p">,</span><span class="n">FancyArgs</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&#39;The method outputFiles() of node {} must return a FancyOutput(...) object.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+    <span class="k">return</span> <span class="bp">self</span>
+
+  <span class="c"># Flag outputs that will be returned as files, so that they can be recycled.</span></div>
+<div class="viewcode-block" id="FancyNode.outputFiles"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyNode.outputFiles">[docs]</a>  <span class="k">def</span> <span class="nf">outputFiles</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">FancyOutput</span><span class="p">(</span>
+      <span class="o">*</span><span class="p">[</span> <span class="n">v</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">myInput</span><span class="o">.</span><span class="n">args</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span><span class="n">FancyOutputFile</span><span class="p">)</span> <span class="p">],</span>
+      <span class="o">**</span><span class="p">{</span> <span class="n">k</span><span class="p">:</span><span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span><span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">myInput</span><span class="o">.</span><span class="n">kwargs</span><span class="o">.</span><span class="n">iteritems</span><span class="p">()</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span><span class="n">FancyOutputFile</span><span class="p">)</span> <span class="p">}</span>
+    <span class="p">)</span>
+
+  <span class="c"># Generate a link that requests output, use only in calls to setInput or setOutput.</span></div>
+<div class="viewcode-block" id="FancyNode.requestOutput"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyNode.requestOutput">[docs]</a>  <span class="k">def</span> <span class="nf">requestOutput</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">key</span><span class="p">):</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">myOutput</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+    <span class="k">except</span><span class="p">:</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">doRecycle</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+          <span class="n">f</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">outfiles</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+          <span class="k">if</span> <span class="n">op</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">f</span><span class="p">):</span> 
+            <span class="k">print</span> <span class="s">&#39;Recycling file &quot;{}&quot; in node {}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">f</span><span class="p">,</span><span class="bp">self</span><span class="p">)</span> 
+            <span class="k">return</span> <span class="n">f</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">,</span><span class="ne">IndexError</span><span class="p">:</span>
+          <span class="k">pass</span>          
+      <span class="k">return</span> <span class="n">FancyLink</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">key</span><span class="p">)</span>
+
+  <span class="c"># Get an output, after calling run().</span></div>
+<div class="viewcode-block" id="FancyNode.getOutput"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyNode.getOutput">[docs]</a>  <span class="k">def</span> <span class="nf">getOutput</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">key</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">myOutput</span><span class="o">.</span><span class="n">ready</span><span class="p">():</span>
+      <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&#39;The output of node {} contains unresolved values. Use requestOutput() instead, or run the node first.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">myOutput</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+  <span class="c"># Initialize requests for output from upstream nodes.</span></div>
+<div class="viewcode-block" id="FancyNode.initRequests"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyNode.initRequests">[docs]</a>  <span class="k">def</span> <span class="nf">initRequests</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">anyArgs</span><span class="p">,</span><span class="n">allSources</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">addRequest</span><span class="p">(</span><span class="n">key</span><span class="p">,</span><span class="n">source</span><span class="p">):</span>
+      <span class="n">sn</span><span class="p">,</span><span class="n">sk</span> <span class="o">=</span> <span class="p">(</span><span class="n">source</span><span class="o">.</span><span class="n">node</span><span class="p">,</span><span class="n">source</span><span class="o">.</span><span class="n">outKey</span><span class="p">)</span>
+      <span class="k">print</span> <span class="s">&#39;Node {} requests output &quot;{}&quot; from node {}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">sk</span><span class="p">,</span><span class="n">sn</span><span class="p">)</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="n">sk</span> <span class="ow">in</span> <span class="n">sn</span><span class="o">.</span><span class="n">requests</span><span class="p">:</span> <span class="n">sn</span><span class="o">.</span><span class="n">requests</span><span class="p">[</span><span class="n">sk</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+      <span class="n">sn</span><span class="o">.</span><span class="n">requests</span><span class="p">[</span><span class="n">sk</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">anyArgs</span><span class="p">,</span><span class="n">key</span><span class="p">,</span><span class="bp">self</span><span class="p">))</span>
+
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span><span class="n">v</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">anyArgs</span><span class="o">.</span><span class="n">args</span><span class="p">):</span>
+      <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span><span class="n">FancyLink</span><span class="p">):</span> <span class="n">addRequest</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">v</span><span class="p">)</span>
+      <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span><span class="n">FancyArgs</span><span class="p">):</span> <span class="bp">self</span><span class="o">.</span><span class="n">initRequests</span><span class="p">(</span><span class="n">v</span><span class="p">,</span><span class="n">allSources</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span><span class="n">v</span> <span class="ow">in</span> <span class="n">anyArgs</span><span class="o">.</span><span class="n">kwargs</span><span class="o">.</span><span class="n">iteritems</span><span class="p">():</span>
+      <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span><span class="n">FancyLink</span><span class="p">):</span> <span class="n">addRequest</span><span class="p">(</span><span class="n">k</span><span class="p">,</span><span class="n">v</span><span class="p">)</span>
+      <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span><span class="n">FancyArgs</span><span class="p">):</span> <span class="bp">self</span><span class="o">.</span><span class="n">initRequests</span><span class="p">(</span><span class="n">v</span><span class="p">,</span><span class="n">allSources</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">src</span> <span class="ow">in</span> <span class="n">anyArgs</span><span class="o">.</span><span class="n">sources</span><span class="p">():</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="n">src</span> <span class="ow">in</span> <span class="n">allSources</span><span class="p">:</span>
+        <span class="n">allSources</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">src</span><span class="p">)</span>
+        <span class="n">src</span><span class="o">.</span><span class="n">initRequests</span><span class="p">(</span><span class="n">src</span><span class="o">.</span><span class="n">myInput</span><span class="p">,</span><span class="n">allSources</span><span class="p">)</span>
+    
+    <span class="k">return</span> <span class="n">allSources</span>
+
+  <span class="c"># Deal with unresolved links in the output.</span></div>
+<div class="viewcode-block" id="FancyNode.runSources"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyNode.runSources">[docs]</a>  <span class="k">def</span> <span class="nf">runSources</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">allSources</span><span class="p">,</span><span class="n">jobQueue</span><span class="p">,</span><span class="n">fancyMP</span><span class="p">):</span>
+    <span class="n">mySources</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">initRequests</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">myOutput</span><span class="p">,</span><span class="nb">set</span><span class="p">())</span>
+    <span class="k">for</span> <span class="n">src</span> <span class="ow">in</span> <span class="n">mySources</span><span class="p">:</span> <span class="n">allSources</span><span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">src</span><span class="p">)]</span> <span class="o">=</span> <span class="n">src</span>
+    <span class="k">for</span> <span class="n">src</span> <span class="ow">in</span> <span class="n">mySources</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">src</span><span class="o">.</span><span class="n">myInput</span><span class="o">.</span><span class="n">ready</span><span class="p">():</span>
+        <span class="n">jobQueue</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">src</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">fancyMP</span><span class="p">:</span> <span class="n">fancyMP</span><span class="o">.</span><span class="n">jobCount</span> <span class="o">+=</span> <span class="mi">1</span>
+    </div>
+<div class="viewcode-block" id="FancyNode.logOutput"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyNode.logOutput">[docs]</a>  <span class="k">def</span> <span class="nf">logOutput</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">fancyLog</span><span class="o">.</span><span class="n">attachResult</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">logId</span><span class="p">,</span> <span class="s">&#39;output&#39;</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">myOutput</span><span class="o">.</span><span class="n">args</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">myOutput</span><span class="o">.</span><span class="n">kwargs</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="FancyNode.propagateOutput"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyNode.propagateOutput">[docs]</a>  <span class="k">def</span> <span class="nf">propagateOutput</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">allSources</span><span class="p">,</span><span class="n">jobQueue</span><span class="p">,</span><span class="n">fancyMP</span><span class="p">):</span>
+    <span class="n">affectedNodes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fulfillRequests</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">affectedNodes</span><span class="p">:</span>
+      <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">node</span><span class="p">)</span> <span class="ow">in</span> <span class="n">allSources</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">myInput</span><span class="o">.</span><span class="n">ready</span><span class="p">():</span> 
+          <span class="n">jobQueue</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+          <span class="k">if</span> <span class="n">fancyMP</span><span class="p">:</span> <span class="n">fancyMP</span><span class="o">.</span><span class="n">jobCount</span> <span class="o">+=</span> <span class="mi">1</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">myOutput</span><span class="o">.</span><span class="n">ready</span><span class="p">():</span>
+          <span class="n">node</span><span class="o">.</span><span class="n">propagateOutput</span><span class="p">(</span><span class="n">allSources</span><span class="p">,</span><span class="n">jobQueue</span><span class="p">,</span><span class="n">fancyMP</span><span class="p">)</span>
+  </div>
+<div class="viewcode-block" id="FancyNode.resolveOutput"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyNode.resolveOutput">[docs]</a>  <span class="k">def</span> <span class="nf">resolveOutput</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">jobQueue</span><span class="p">,</span><span class="n">fancyMP</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="n">allSources</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">runSources</span><span class="p">(</span><span class="n">allSources</span><span class="p">,</span><span class="n">jobQueue</span><span class="p">,</span><span class="n">fancyMP</span><span class="p">)</span>
+    <span class="k">while</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">myOutput</span><span class="o">.</span><span class="n">ready</span><span class="p">():</span>
+      <span class="k">if</span> <span class="n">fancyMP</span><span class="p">:</span>
+        <span class="c"># parallel execution, using MultiProcessing</span>
+        <span class="k">if</span> <span class="n">fancyMP</span><span class="o">.</span><span class="n">jobCount</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+          <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&#39;Waiting for output but no jobs are running.&#39;</span><span class="p">)</span>
+        <span class="p">(</span><span class="n">srcId</span><span class="p">,</span><span class="n">myOutput</span><span class="p">)</span> <span class="o">=</span> <span class="n">fancyMP</span><span class="o">.</span><span class="n">resultQueue</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">block</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="n">fancyMP</span><span class="o">.</span><span class="n">jobCount</span> <span class="o">-=</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="n">srcId</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+          <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&#39;Worker node {} encountered an error.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">myOutput</span><span class="p">))</span>
+        <span class="n">src</span> <span class="o">=</span> <span class="n">allSources</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">srcId</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="c"># serial execution</span>
+        <span class="n">src</span> <span class="o">=</span> <span class="n">jobQueue</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">block</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="n">allSources</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">src</span><span class="p">))</span>
+        <span class="n">myOutput</span> <span class="o">=</span> <span class="n">src</span><span class="o">.</span><span class="n">_run</span><span class="p">()</span>
+        
+      <span class="n">src</span><span class="o">.</span><span class="n">myOutput</span> <span class="o">=</span> <span class="n">myOutput</span>
+      <span class="k">if</span> <span class="n">src</span><span class="o">.</span><span class="n">myOutput</span><span class="o">.</span><span class="n">ready</span><span class="p">():</span>
+        <span class="n">src</span><span class="o">.</span><span class="n">logOutput</span><span class="p">()</span>
+        <span class="n">src</span><span class="o">.</span><span class="n">propagateOutput</span><span class="p">(</span><span class="n">allSources</span><span class="p">,</span><span class="n">jobQueue</span><span class="p">,</span><span class="n">fancyMP</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">src</span><span class="o">.</span><span class="n">runSources</span><span class="p">(</span><span class="n">allSources</span><span class="p">,</span><span class="n">jobQueue</span><span class="p">,</span><span class="n">fancyMP</span><span class="p">)</span>
+
+  <span class="c"># Fulfill requests after running the upstream nodes.</span></div>
+<div class="viewcode-block" id="FancyNode.fulfillRequests"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyNode.fulfillRequests">[docs]</a>  <span class="k">def</span> <span class="nf">fulfillRequests</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">affectedNodes</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="c"># Send output to targets</span>
+    <span class="n">outputRequests</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">requests</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">outputRequests</span><span class="p">:</span>
+      <span class="k">try</span><span class="p">:</span>
+        <span class="n">val</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">myOutput</span> <span class="k">if</span> <span class="n">key</span> <span class="ow">is</span> <span class="bp">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">myOutput</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">long</span><span class="p">))</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">myOutput</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+      <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span> 
+        <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="s">&#39;Node &quot;{}&quot; does not have the requested output &quot;{}&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">key</span><span class="p">))</span>
+      <span class="k">for</span> <span class="n">targetArgs</span><span class="p">,</span><span class="n">targetKey</span><span class="p">,</span><span class="n">targetNode</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">requests</span><span class="p">[</span><span class="n">key</span><span class="p">]:</span>
+        <span class="n">targetArgs</span><span class="p">[</span><span class="n">targetKey</span><span class="p">]</span> <span class="o">=</span> <span class="n">val</span>
+        <span class="n">affectedNodes</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">targetNode</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">requests</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">affectedNodes</span>
+        
+  <span class="c"># Run this node and return its output: outer loop.</span></div>
+<div class="viewcode-block" id="FancyNode.run"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyNode.run">[docs]</a>  <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_run</span><span class="p">()</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">myOutput</span><span class="o">.</span><span class="n">ready</span><span class="p">():</span>
+        <span class="c"># resolve output dependencies</span>
+        <span class="n">isWorker</span> <span class="o">=</span>  <span class="nb">hasattr</span><span class="p">(</span><span class="n">multiprocessing</span><span class="o">.</span><span class="n">current_process</span><span class="p">(),</span><span class="s">&#39;jobQueue&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">doParallel</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">isWorker</span><span class="p">:</span>
+          <span class="k">print</span> <span class="s">&#39;Running node {} in parallel mode.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+          <span class="n">fancyMP</span> <span class="o">=</span> <span class="n">FancyMP</span><span class="p">()</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">resolveOutput</span><span class="p">(</span><span class="n">fancyMP</span><span class="o">.</span><span class="n">jobQueue</span><span class="p">,</span><span class="n">fancyMP</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="k">print</span> <span class="s">&#39;Running node {} in serial mode.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">resolveOutput</span><span class="p">(</span><span class="n">Queue</span><span class="o">.</span><span class="n">Queue</span><span class="p">())</span>
+
+      <span class="bp">self</span><span class="o">.</span><span class="n">logOutput</span><span class="p">()</span>
+      <span class="n">FancyReport</span><span class="o">.</span><span class="n">success</span><span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">myOutput</span><span class="o">.</span><span class="n">args</span><span class="p">,</span><span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">myOutput</span><span class="o">.</span><span class="n">kwargs</span><span class="p">)</span>
+      <span class="k">return</span> <span class="bp">self</span>
+    <span class="k">except</span><span class="p">:</span>
+      <span class="n">msg</span> <span class="o">=</span> <span class="n">FancyReport</span><span class="o">.</span><span class="n">traceback</span><span class="p">()</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">fancyLog</span><span class="o">.</span><span class="n">attachResult</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">logId</span><span class="p">,</span><span class="s">&#39;Fatal error in node {}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span><span class="n">msg</span><span class="p">,{},</span> <span class="n">tp</span><span class="o">=</span><span class="s">&#39;error&#39;</span><span class="p">)</span>
+      <span class="n">FancyReport</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span><span class="n">__file__</span><span class="p">)</span>
+
+  <span class="c"># Main processing step, to be implemented by the derived class.</span></div>
+<div class="viewcode-block" id="FancyNode.main"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyNode.main">[docs]</a>  <span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="o">*</span><span class="n">args</span><span class="p">,</span><span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+</div>
+  <span class="k">def</span> <span class="nf">_main</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">myInput</span><span class="p">):</span>
+    <span class="c"># Main processing step.</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">main</span><span class="p">(</span><span class="o">*</span><span class="n">myInput</span><span class="o">.</span><span class="n">args</span><span class="p">,</span><span class="o">**</span><span class="n">myInput</span><span class="o">.</span><span class="n">kwargs</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c"># Add entry to log/console.</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getName</span><span class="p">()</span>
+    <span class="n">commandLine</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getCommandLine</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">fancyLog</span><span class="o">.</span><span class="n">addEntry</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">logId</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">myInput</span><span class="o">.</span><span class="n">args</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">myInput</span><span class="o">.</span><span class="n">kwargs</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">title</span><span class="p">,</span><span class="n">commandLine</span><span class="o">=</span><span class="n">commandLine</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">myOutput</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_main</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">myInput</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">myOutput</span><span class="p">,</span><span class="n">FancyArgs</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&#39;The function main() of node {} must return a FancyOutput(...) object.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+<span class="c">#endclass</span>
+
+
+<span class="c">## Extended class for pipeline nodes, adds support for calling the node</span>
+<span class="c">## from the command line.</span></div>
+<div class="viewcode-block" id="FancyModule"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyModule">[docs]</a><span class="k">class</span> <span class="nc">FancyModule</span><span class="p">(</span><span class="n">FancyNode</span><span class="p">):</span>
+  <span class="n">inputs</span> <span class="o">=</span> <span class="p">{}</span>
+  
+  <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="FancyModule.fromCommandLine"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyModule.fromCommandLine">[docs]</a>  <span class="k">def</span> <span class="nf">fromCommandLine</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
+    <span class="n">cmdArgs</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">_getParser</span><span class="p">()</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span><span class="o">.</span><span class="n">__dict__</span><span class="p">;</span>
+    <span class="n">kwargs</span> <span class="o">=</span> <span class="n">FancyNode</span><span class="o">.</span><span class="n">_parseInputs</span><span class="p">(</span><span class="n">cmdArgs</span><span class="p">)</span>
+    <span class="n">logdir</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s">&#39;logdir&#39;</span><span class="p">]</span>
+    <span class="n">loglevel</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s">&#39;loglevel&#39;</span><span class="p">]</span>
+    <span class="n">configfile</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s">&#39;configfile&#39;</span><span class="p">]</span>
+    <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{</span>
+      <span class="s">&#39;tempdir&#39;</span><span class="p">:</span> <span class="n">kwargs</span><span class="p">[</span><span class="s">&#39;tempdir&#39;</span><span class="p">],</span>
+      <span class="s">&#39;fancyClean&#39;</span><span class="p">:</span> <span class="n">FancyClean</span><span class="p">(</span><span class="n">kwargs</span><span class="p">[</span><span class="s">&#39;nocleanup&#39;</span><span class="p">]),</span>
+      <span class="s">&#39;fancyConfig&#39;</span><span class="p">:</span> <span class="n">FancyConfig</span><span class="o">.</span><span class="n">fromFile</span><span class="p">(</span><span class="n">configfile</span><span class="p">)</span> <span class="k">if</span> <span class="n">configfile</span> <span class="k">else</span> <span class="bp">None</span><span class="p">,</span>
+      <span class="s">&#39;fancyLog&#39;</span><span class="p">:</span> <span class="n">FancyLog</span><span class="p">(</span><span class="n">logdir</span><span class="p">,</span><span class="n">loglevel</span><span class="p">),</span>
+      <span class="s">&#39;logId&#39;</span><span class="p">:</span> <span class="n">kwargs</span><span class="p">[</span><span class="s">&#39;logid&#39;</span><span class="p">]</span>
+    <span class="p">}</span>
+    <span class="c"># Instantiate.</span>
+    <span class="bp">self</span> <span class="o">=</span> <span class="n">cls</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="c"># Update with remaining inputs from command line.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">setInput</span><span class="p">(</span><span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">_parseInputs</span><span class="p">(</span><span class="n">cmdArgs</span><span class="p">))</span>
+    <span class="k">return</span> <span class="bp">self</span>
+</div>
+  <span class="nd">@classmethod</span>
+  <span class="k">def</span> <span class="nf">_getParser</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span>
+      <span class="n">description</span><span class="o">=</span><span class="n">cls</span><span class="o">.</span><span class="n">description</span> <span class="k">if</span> <span class="n">cls</span><span class="o">.</span><span class="n">description</span> <span class="k">else</span> <span class="n">cls</span><span class="o">.</span><span class="n">title</span><span class="p">,</span>
+      <span class="n">formatter_class</span><span class="o">=</span><span class="n">argparse</span><span class="o">.</span><span class="n">RawTextHelpFormatter</span><span class="p">,</span>
+      <span class="n">argument_default</span><span class="o">=</span><span class="n">argparse</span><span class="o">.</span><span class="n">SUPPRESS</span>
+    <span class="p">)</span>
+    <span class="n">cls</span><span class="o">.</span><span class="n">_extendParser</span><span class="p">(</span><span class="n">p</span><span class="p">,</span><span class="n">FancyNode</span><span class="o">.</span><span class="n">inputs</span><span class="p">)</span>
+    <span class="n">cls</span><span class="o">.</span><span class="n">_extendParser</span><span class="p">(</span><span class="n">p</span><span class="p">,</span><span class="n">cls</span><span class="o">.</span><span class="n">inputs</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">p</span>
+
+  <span class="nd">@classmethod</span>
+  <span class="k">def</span> <span class="nf">_extendParser</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span><span class="n">p</span><span class="p">,</span><span class="n">inputs</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">key</span><span class="p">,</span><span class="n">inp</span> <span class="ow">in</span> <span class="n">inputs</span><span class="o">.</span><span class="n">iteritems</span><span class="p">():</span>
+      <span class="n">inp</span> <span class="o">=</span> <span class="n">inp</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+      <span class="n">dest</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;-{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">key</span><span class="p">),</span><span class="s">&#39;--{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">key</span><span class="p">)]</span>
+      <span class="n">inp</span><span class="p">[</span><span class="s">&#39;required&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">False</span> <span class="k">if</span> <span class="s">&#39;default&#39;</span> <span class="ow">in</span> <span class="n">inp</span> <span class="k">else</span> <span class="bp">True</span>
+      <span class="c"># ignore argument default, defer to parseInputs</span>
+      <span class="k">if</span> <span class="s">&#39;default&#39;</span> <span class="ow">in</span> <span class="n">inp</span><span class="p">:</span> <span class="k">del</span> <span class="n">inp</span><span class="p">[</span><span class="s">&#39;default&#39;</span><span class="p">]</span>
+      <span class="c"># overwrite argument type, defer to parseInputs</span>
+      <span class="k">if</span> <span class="s">&#39;type&#39;</span> <span class="ow">in</span> <span class="n">inp</span><span class="p">:</span> <span class="n">inp</span><span class="p">[</span><span class="s">&#39;type&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span>
+      <span class="n">p</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="o">*</span><span class="n">dest</span><span class="p">,</span><span class="o">**</span><span class="n">inp</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">_main</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">myInput</span><span class="p">):</span>
+    <span class="c"># Create mainInput from myInput (default: same).</span>
+    <span class="n">mainInput</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">beforeMain</span><span class="p">(</span><span class="o">*</span><span class="n">myInput</span><span class="o">.</span><span class="n">args</span><span class="p">,</span><span class="o">**</span><span class="n">myInput</span><span class="o">.</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="c"># Main processing step.</span>
+    <span class="n">mainOutput</span> <span class="o">=</span> <span class="n">FancyNode</span><span class="o">.</span><span class="n">_main</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">mainInput</span><span class="p">)</span>
+    <span class="c"># Create myOutput from mainOutput (default: same).</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">afterMain</span><span class="p">(</span><span class="o">*</span><span class="n">mainOutput</span><span class="o">.</span><span class="n">args</span><span class="p">,</span><span class="o">**</span><span class="n">mainOutput</span><span class="o">.</span><span class="n">kwargs</span><span class="p">)</span>
+
+  <span class="c"># Convert run() input to main() input</span>
+<div class="viewcode-block" id="FancyModule.beforeMain"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyModule.beforeMain">[docs]</a>  <span class="k">def</span> <span class="nf">beforeMain</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="o">*</span><span class="n">args</span><span class="p">,</span><span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">FancyInput</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+  
+  <span class="c"># Convert main() output to run() output</span></div>
+<div class="viewcode-block" id="FancyModule.afterMain"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyModule.afterMain">[docs]</a>  <span class="k">def</span> <span class="nf">afterMain</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="o">*</span><span class="n">args</span><span class="p">,</span><span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">FancyOutput</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+<span class="c">#endclass</span>
+
+</div></div>
+<div class="viewcode-block" id="FancyExec"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyExec">[docs]</a><span class="k">class</span> <span class="nc">FancyExec</span><span class="p">(</span><span class="n">FancyModule</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot; </span>
+<span class="sd">  Extended class for pipeline nodes that execute jobs outside of Python,</span>
+<span class="sd">  with a pre-defined main method.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+<div class="viewcode-block" id="FancyExec.getName"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyExec.getName">[docs]</a>  <span class="k">def</span> <span class="nf">getName</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">mainInput</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">beforeMain</span><span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">myInput</span><span class="o">.</span><span class="n">args</span><span class="p">,</span><span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">myInput</span><span class="o">.</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="n">cmd</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">mainInput</span><span class="o">.</span><span class="n">args</span><span class="p">);</span>
+    <span class="k">return</span> <span class="s">&#39;&lt;{}&gt;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">cmd</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    </div>
+<div class="viewcode-block" id="FancyExec.getCommandLine"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyExec.getCommandLine">[docs]</a>  <span class="k">def</span> <span class="nf">getCommandLine</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">mainInput</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">beforeMain</span><span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">myInput</span><span class="o">.</span><span class="n">args</span><span class="p">,</span><span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">myInput</span><span class="o">.</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="n">cmd</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">mainInput</span><span class="o">.</span><span class="n">args</span><span class="p">);</span>
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span><span class="n">v</span> <span class="ow">in</span> <span class="n">mainInput</span><span class="o">.</span><span class="n">kwargs</span><span class="o">.</span><span class="n">iteritems</span><span class="p">():</span> <span class="n">cmd</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">k</span><span class="p">,</span><span class="n">v</span><span class="p">])</span>
+    <span class="k">return</span> <span class="s">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s">&#39;{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">cmd</span><span class="p">])</span>
+</div>
+<div class="viewcode-block" id="FancyExec.main"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyExec.main">[docs]</a>  <span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="o">*</span><span class="n">args</span><span class="p">,</span><span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="n">cmd</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">args</span><span class="p">);</span>
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span><span class="n">v</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">iteritems</span><span class="p">():</span> <span class="n">cmd</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">k</span><span class="p">,</span><span class="n">v</span><span class="p">])</span>
+    <span class="n">stdout</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">check_output</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span> <span class="n">shell</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">stderr</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">STDOUT</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">fancyLog</span><span class="o">.</span><span class="n">attachResult</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">logId</span><span class="p">,</span> <span class="s">&#39;stdout&#39;</span><span class="p">,</span><span class="n">stdout</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">),{},</span> <span class="n">tp</span><span class="o">=</span><span class="s">&#39;longtext&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">FancyOutput</span><span class="p">(</span><span class="n">stdout</span><span class="p">)</span>
+    </div>
+<div class="viewcode-block" id="FancyExec.afterMain"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyExec.afterMain">[docs]</a>  <span class="k">def</span> <span class="nf">afterMain</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">stdout</span><span class="p">):</span>
+    <span class="k">if</span> <span class="s">&#39;outputFiles&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__dict__</span><span class="p">:</span> <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">outfiles</span>
+    <span class="c"># If no output files have been defined, then assume that</span>
+    <span class="c"># outputs are stored in files with the name given by the corresponding input</span>
+    <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span><span class="n">_</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">requests</span><span class="o">.</span><span class="n">iteritems</span><span class="p">():</span>
+      <span class="n">kwargs</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getInput</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">FancyOutput</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+<span class="c">#endclass</span>
+
+
+<span class="c">## Worker class used for parallel node execution.</span></div></div>
+<div class="viewcode-block" id="FancyWorker"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyWorker">[docs]</a><span class="k">class</span> <span class="nc">FancyWorker</span><span class="p">(</span><span class="n">multiprocessing</span><span class="o">.</span><span class="n">Process</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">jobQueue</span><span class="p">,</span> <span class="n">resultQueue</span><span class="p">):</span>
+    <span class="n">multiprocessing</span><span class="o">.</span><span class="n">Process</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">jobQueue</span> <span class="o">=</span> <span class="n">jobQueue</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">resultQueue</span> <span class="o">=</span> <span class="n">resultQueue</span>
+
+<div class="viewcode-block" id="FancyWorker.run"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyWorker.run">[docs]</a>  <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+      <span class="k">try</span><span class="p">:</span>
+        <span class="n">node</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">jobQueue</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">node</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+          <span class="c"># Poison pill means shutdown</span>
+          <span class="k">print</span> <span class="s">&#39;Exiting fancy worker {}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+          <span class="k">break</span>
+        <span class="n">node</span><span class="o">.</span><span class="n">_run</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">resultQueue</span><span class="o">.</span><span class="n">put</span><span class="p">((</span><span class="nb">str</span><span class="p">(</span><span class="n">node</span><span class="p">),</span><span class="n">node</span><span class="o">.</span><span class="n">myOutput</span><span class="p">))</span>
+      <span class="k">except</span><span class="p">:</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="n">FancyReport</span><span class="o">.</span><span class="n">traceback</span><span class="p">()</span>
+        <span class="n">node</span><span class="o">.</span><span class="n">fancyLog</span><span class="o">.</span><span class="n">attachResult</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">logId</span><span class="p">,</span><span class="s">&#39;Fatal error in worker {} during/after execution of node {}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span><span class="n">node</span><span class="p">),</span><span class="n">msg</span><span class="p">,{},</span> <span class="n">tp</span><span class="o">=</span><span class="s">&#39;error&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">resultQueue</span><span class="o">.</span><span class="n">put</span><span class="p">((</span><span class="bp">None</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
+        <span class="n">FancyReport</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span><span class="n">__file__</span><span class="p">)</span>
+    <span class="k">return</span>
+<span class="c">#endclass</span>
+
+
+<span class="c">## Used when running in multi-process mode, maintains a pool of workers.</span></div></div>
+<div class="viewcode-block" id="FancyMP"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyMP">[docs]</a><span class="k">class</span> <span class="nc">FancyMP</span><span class="p">:</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">numWorkers</span><span class="o">=</span><span class="s">&#39;auto&#39;</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">jobQueue</span> <span class="o">=</span> <span class="n">multiprocessing</span><span class="o">.</span><span class="n">Queue</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">resultQueue</span> <span class="o">=</span> <span class="n">multiprocessing</span><span class="o">.</span><span class="n">Queue</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">jobCount</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">resultCount</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">if</span> <span class="n">numWorkers</span> <span class="o">==</span> <span class="s">&#39;auto&#39;</span><span class="p">:</span> <span class="n">numWorkers</span> <span class="o">=</span> <span class="n">multiprocessing</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">workers</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="n">numWorkers</span><span class="p">):</span>
+      <span class="n">worker</span> <span class="o">=</span> <span class="n">FancyWorker</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">jobQueue</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">resultQueue</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">workers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">worker</span><span class="p">)</span>
+      <span class="n">worker</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+
+  <span class="k">def</span> <span class="nf">__del__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">worker</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">workers</span><span class="p">:</span>
+      <span class="n">worker</span><span class="o">.</span><span class="n">terminate</span><span class="p">()</span>
+<span class="c">#endclasss</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../index.html">FancyPipe 1.0 documentation</a> &raquo;</li>
+          <li><a href="index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Rembrandt Bakker.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>
