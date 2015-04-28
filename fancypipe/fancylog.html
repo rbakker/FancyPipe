@@ -1,0 +1,197 @@
+<html>
+<head>
+<style>
+body,td,input {
+  font-family: trebuchet MS, arial, helvetica, sans-serif;
+  font-size: 14px;
+}
+
+table.cmd { border-collapse: collapse }
+table.cmd th { border: 1px solid #088; text-align: left }
+table.cmd td { border: 1px solid #088 }
+
+ol { counter-reset: item }
+li { display: block }
+h3:before { content: counters(item, ".") " "; counter-increment: item }
+div.toggle-open,div.toggle-closed { font-weight: bold; color: #00D; float:left; width:3ex }
+div.toggle-disabled { display: none }
+div.content-closed { display: none }
+div.scrollbox { height:8em; border-left: 2px solid #088; padding-left: 2px; overflow-y:scroll }
+
+#ERROR_CONSOLE { padding:10px; background:#a00; color:#fff; display:none }
+div.result { border-left: 10px solid #fa0; padding-left:4px }
+</style>
+<script type="text/javascript" src="fancylog.js"></script>
+<script type="text/javascript">
+
+function escapeHtml(text) {
+  return String(text)
+      .replace('&', "&amp;")
+      .replace('<', "&lt;")
+      .replace('>', "&gt;")
+      .replace('"', "&quot;")
+      .replace('\'', "&#039;");
+}
+
+function toggleHtml(status) {
+  if (status=='open') return '[&ndash;]';
+  if (status=='closed') return '[+]';
+  return '[&nbsp;]';
+}
+
+function doToggle(elem) {
+  status = 'disabled';
+  contentElem = elem.parentNode.children[2];
+  if (contentElem) {
+    status = elem.className.substr(7);
+    status = (status=='open' ? 'closed' : 'open');
+    elem.className = 'toggle-'+status;
+    contentElem.className = 'content-'+status;
+  }
+  elem.innerHTML = toggleHtml(status);
+}
+
+function genTable(th,args,kwargs,className) {
+  tr = th ? [th] : [];
+  if (args && args.length) {
+    for (var i=0; i<args.length; i++) {
+      tr.push('<td colspan="2">'+escapeHtml(args[i])+'</td>');
+    }
+  }
+  if (kwargs) {
+    for (var k in kwargs) {
+      v = kwargs[k]
+      if (typeof(v) == 'object') v = '<pre>'+escapeHtml(JSON.stringify(v,undefined,2))+'</pre>';
+      else v = escapeHtml(v)
+      tr.push('<td>'+k+'</td><td>'+v+'</td>');
+    }
+  }
+  return '<table class="'+className+'"><tr>'+tr.join('</tr><tr>')+'</tr></table>';
+}
+
+function entryHtml(entry,tagName,level) {
+  if (!level) level = 0;
+  if (!tagName) tagName = 'h3';
+  var title = escapeHtml(entry.title != undefined ? entry.title : entry.cmd);
+  var defines = entry.defines;
+  var cmd = escapeHtml(entry.cmd+'['+entry.id+']');
+  var status = 'disabled';
+  if (level>0) status = 'open';
+  if (level>3) status = 'closed';
+  var toggleMe = '<div class="toggle-'+status+'" onclick="javascript:doToggle(this)">'+toggleHtml(status)+'&nbsp;</div>';
+  var startContent = '<div class="content-'+status+'">';
+  var endContent = '</div>';
+  var ans = toggleMe+'<'+tagName+'>'+title+'</'+tagName+'>'+startContent;
+  var th = '<td colspan="2"><b>'+cmd+'</b></td>';
+  ans += genTable(th,entry.args,entry.kwargs,'cmd');
+  var result = entry.result;
+  if (Object.keys(result).length) {
+    ans += '<div class="result">';
+    for (var name in result) {
+      ans += '<b>'+name+'</b>';
+      var R = result[name];
+      if (R.type == 'text') {
+        var lines = R.args;
+        var style = lines.length>8 ? ' class="scrollbox"' : '';
+        ans += '<div'+style+'>'
+        for (k in lines) lines[k] = escapeHtml(lines[k]);
+        ans += '<code>'+lines.join('<br/>')+'</code>';
+        ans += '</div>';
+      } else if (R.type == 'file') {
+        ans += '<a href="file:///'+R.args[0]+'">'+R.args[0]+'</a>';
+      } else {
+        ans += '<div>'
+        if (R.args != undefined || R.kwargs != undefined) {
+          ans += genTable(undefined,R.args,R.kwargs,'cmd');
+        }
+        ans += '</div>';
+        if (R.type == 'error') { 
+          printError(name); 
+          printError(R.args)
+        }
+      }
+    }
+    ans += '</div>';
+  }
+  var entries = entry.entries;
+  if (entries) {
+    var li = [];
+    for (var k in entries) {
+      li.push(entryHtml(entries[k],'h3',level+1));
+    }
+    ans += '<ol style="display:block"><li>'+li.join('</li><li>')+'</li></span></ol>';
+  }
+  ans += endContent;
+  return ans;
+}
+
+function printError(msg) {
+  var elem = document.getElementById('ERROR_CONSOLE');
+  elem.innerHTML += '<pre>'+escapeHtml(JSON.stringify(msg,undefined,2))+'</pre><br/>';
+  elem.style.display = "block";
+}
+
+function log2tree(LOG) {
+  // prepare ndid2i, for the unlikely event that a child is defined before its parent
+  var ndid2i = {};
+  for (var i=0; i<LOG.length; i++) {
+    var nd = LOG[i];
+    if (nd.id != undefined) {
+      ndid2i[nd.id] = i;
+      nd.result = {};
+      nd.entries = [];
+    }
+  }
+  for (var i=1; i<LOG.length; i++) {
+    var nd = LOG[i];
+    if (nd.id != undefined) {
+      var pa = nd.parentId;
+      if (pa) {
+        var j = ndid2i[pa];
+        if (j == undefined) {
+          // add missing parent to log
+          pand = {
+            "id":pa,
+            "parentId":"__ROOT__",
+            "result":{},
+            "entries":[]
+          }
+          pipeline.push(pand);
+          j = ndid2i[pa] = pipeline.length-1;
+        }
+        // this should build the tree, given that javascript stores objects as pointers
+        LOG[j].entries.push(nd);
+      } else {
+        nd.parentId = '__ROOT__';
+        LOG[0].entries.push(nd);
+      }
+    } else {
+      var j = ndid2i[nd.attachTo]
+      if (j === undefined) {
+        printError('Cannot attach result to noon-existing node "'+nd.attachTo+'".')
+      } else {
+        LOG[j].result[nd.name] = {args: nd.args,kwargs: nd.kwargs, type: nd.type}
+      }
+    }
+  }
+  return LOG[0].entries.length == 1 ? LOG[0].entries[0] : LOG[0];
+}
+
+function mainHtml(LOG) {
+  try {
+    LOG.unshift({'id':'__ROOT__','result':{},'entries':[],'title':'ROOT'});
+    var logTree = log2tree(LOG);
+    return entryHtml(logTree,'h2');
+  } catch(err) {
+    printError(err);
+  }
+}
+
+</script>
+</head>
+<body onload="document.getElementById('main').innerHTML = mainHtml(LOG)">
+<div id="ERROR_CONSOLE">ERROR CONSOLE<br/></div>
+<div id="main"></div>
+</body>
+</html>
+
