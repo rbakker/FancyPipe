@@ -3,10 +3,10 @@
 
 FancyPipe
 =========
-The FancyPipe Engine is an open source python package for running 
-cpu-intensive data processing pipelines. It covers those aspects
-that would otherwise distract you from your main job: the design of the 
-processing steps.
+FancyPipe is an open `source <https://github.com/rbakker/FancyPipe>`_ 
+python package for running cpu-intensive data processing pipelines. 
+It covers those aspects that would otherwise distract you from your 
+main job: the design of the processing steps.
 
 FancyPipe takes care of:
 

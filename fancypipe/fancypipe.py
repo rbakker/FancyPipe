@@ -13,20 +13,39 @@
 # * reading parameters from a configuration file
 #
 # To use FancyPipe effectively, you need to wrap your processing steps 
-# as FancyNode or FancyModule classes, and define input-output 
+# as FancyTask or FancyModule classes, and define input-output 
 # connections between nodes.
+#
+# FancyPipe requires Python 3 or higher, because of this bug:
+# http://bugs.python.org/issue7105
+#
 
-# to do: 
-# - json RPC output
-# - support positional command line arguments
-
+import __future__
 import os,sys
 import os.path as op
 import argparse, subprocess
 import tempfile, datetime, json
 from collections import OrderedDict
 import re
-import multiprocessing, Queue
+import multiprocessing
+try:
+    import queue
+except ImportError:
+    import Queue as queue
+
+class FancyPassword:
+  def __init__(self,pwd):
+    self.value = pwd
+  def __repr__(self):
+    return '***'
+
+def assertPassword(s):
+  return FancyPassword(s)
+
+def assertBool(s):
+  if (s is True or s.lower() == 'true' or s == '1'): return True
+  elif (s is False or s.lower() == 'false' or s == '0'): ans = False
+  else: raise AssertionError('Option "{}" does not represent a boolean value.'.format(s))
 
 def assertFile(s):
   """ Assert that the input is an existing file. """
@@ -91,7 +110,7 @@ class _FancyAutoclean:
   def __init__(self,f):
     self.f = f
   def __del__(self):
-    print 'Future: Removing file {}'.format(self.f)
+    print('Future: Removing file {}'.format(self.f))
     #os.remove(self.f)      
 
 ## Use this class to indicate that a string represents a temporary file,
@@ -106,24 +125,26 @@ class FancyAutoclean(str):
 class FancyReport:
   import traceback as tb
   @staticmethod
+  def warning(s): print('\033[1;30m{}\033[0m'.format(s))
+  @staticmethod
   def error(s): sys.stderr.write('\033[1;31m{}\033[0m'.format(s))
   @staticmethod
   def success(*out,**kwout):
     if len(out):
       result = FancyLog.stringifyList(out)
-      print json.dumps(result)
+      print(json.dumps(result))
     if kwout:
       result = FancyLog.stringifyDict(kwout)
-      print json.dumps(result,indent=2)
+      print(json.dumps(result,indent=2))
   @staticmethod
   def traceback():
     exc_type, exc_value, exc_traceback = sys.exc_info() 
     return FancyReport.tb.format_exception(exc_type, exc_value, exc_traceback)
   @staticmethod
-  def fail(infile,code=1):
-    FancyReport.error("Error in {}.\n".format(infile))
-    FancyReport.error(json.dumps(FancyReport.traceback(),indent=2))
-    print
+  def fail(msg='Error',code=1):
+    FancyReport.error(msg+'\n')
+    FancyReport.error(json.dumps(FancyReport.traceback(),indent=2)+'\n')
+    print()
     sys.exit(code)
 #endclass
 
@@ -135,11 +156,11 @@ class FancyLog:
     self.logfile = None
     if logdir: 
       if not op.isdir(logdir):
-        print 'Creating new log directory "{}".'.format(logdir)
+        print('Creating new log directory "{}".'.format(logdir))
         os.makedirs(logdir)
       logfilesdir = op.join(logdir,'fancylog_files')
       if not op.isdir(logfilesdir):
-        print 'Creating new log_files directory "{}".'.format(logfilesdir)
+        print('Creating new log_files directory "{}".'.format(logfilesdir))
         os.mkdir(logfilesdir)
       self.logdir = logdir
       self.logfile = op.join(logdir,'fancylog.js')
@@ -162,11 +183,11 @@ class FancyLog:
 
   @staticmethod
   def stringifyDict(kwargs):
-    return { k:FancyLog.stringifyValue(v) for k,v in kwargs.iteritems() }
+    return { k:FancyLog.stringifyValue(v) for k,v in kwargs.items() }
     
   # Add an entry to the logfile
   def addEntry(self, logId,cmd,args,kwargs, title=None,commandLine=None):
-    print '___\nLog({}) {}'.format(logId,cmd+': '+title if title else cmd)
+    print('___\nLog({}) {}'.format(logId,cmd+': '+title if title else cmd))
     # prepare args for json-dumping
     if args:
       args = self.stringifyList(args)
@@ -174,8 +195,8 @@ class FancyLog:
       kwargs = self.stringifyDict(kwargs)
     if self.loglevel > 0:
       if commandLine: 
-        print 'Command line: {}'.format(commandLine)
-      print 'Arguments: {},{}'.format(json.dumps(args,indent=2),json.dumps(kwargs,indent=2))
+        print('Command line: {}'.format(commandLine))
+      print('Arguments: {},{}'.format(json.dumps(args,indent=2),json.dumps(kwargs,indent=2)))
     
     # write to logfile
     if not self.logfile: return
@@ -201,7 +222,7 @@ class FancyLog:
       'attachTo':logId,
       'message':msg
     }  
-    print 'Node {} says: {}'.format(logId,msg)
+    print('Node {} says: {}'.format(logId,msg))
     # write to logfile
     if not self.logfile: return
     with open(self.logfile,'a') as log:
@@ -255,14 +276,16 @@ class FancyClean:
     self.dirs = set()
     
   def _addFile(self,ff):
-    self.files.add(ff)
+    pass
+    #self.files.add(ff)
 
   def addNewFile(self,f):
     f = op.realpath(f)
     if not op.isfile(f): self._addFile(f)
         
   def _addDir(self,dd):
-    self.dirs.add(dd)
+    pass
+    #self.dirs.add(dd)
   
   def addCreateDir(self,d):
     d = op.realpath(d)
@@ -284,14 +307,14 @@ class FancyClean:
     for f in self.files:
       if f not in E:
         try:
-          print 'DELETING FILE "{}"'.format(f)
+          print('DELETING FILE "{}"'.format(f))
           #os.remove(f)
         except:
           pass
     for d in reversed(sorted(self.dirs)):
       if d not in E:
         try:
-          print 'REMOVING DIR "{}"'.format(d)
+          print('REMOVING DIR "{}"'.format(d))
           #os.rmdir(d)
         except:
           pass
@@ -300,14 +323,14 @@ class FancyClean:
 
 ## Used to load and keep track of configuration parameters.
 class FancyConfig:
-  def __init__(self,config):
+  def __init__(self,config={}):
     self.config = config
 
   @staticmethod
   def etree_to_odict(t):
     if len(t):
       od = OrderedDict()
-      for ch in t.iterchildren():
+      for ch in t:
         od[ch.tag] = FancyConfig.etree_to_odict(ch)
       return od
     else:
@@ -315,11 +338,16 @@ class FancyConfig:
 
   @classmethod
   def fromFile(cls,configFile):
+    if configFile is None:
+      return cls()
     name,ext = op.splitext(configFile)
     if ext.lower() == '.xml':
       from lxml import etree
       tree = etree.parse(configFile)
-      return cls(FancyConfig.etree_to_odict(tree.getroot()))
+      root = tree.getroot()
+      config = OrderedDict()
+      config[root.tag] = FancyConfig.etree_to_odict(root)
+      return cls(config)
     elif ext.lower() == '.json':
       return cls(json.load(configFile, object_pairs_hook=OrderedDict))
     else:
@@ -327,14 +355,13 @@ class FancyConfig:
 
   @classmethod
   def fromParent(cls,parentNode):
-    if parentNode.fancyConfig:
-      config = parentNode.fancyConfig.config.copy()
-      parentClass = parentNode.__class__.__name__
-      if parentClass in config:
-        # overwrite defaults with className-specific defaults
-        for k,v in config[parentClass].iteritems(): config[k] = v;
-        config.pop(parentClass)
-      return cls(config)
+    config = parentNode.fancyConfig.config.copy()
+    parentClass = parentNode.__class__.__name__
+    if parentClass in config:
+      # overwrite defaults with className-specific defaults
+      for k,v in config[parentClass].items(): config[k] = v;
+      config.pop(parentClass)
+    return cls(config)
     
   def classDefaults(self,nodeClass):
     return self.config[nodeClass] if nodeClass in self.config else {}
@@ -344,7 +371,7 @@ class FancyConfig:
 ## Indicates an outgoing link of output <outKey> of node <node>.
 class FancyLink:
   def __init__(self,node,outKey):
-    self.node = node # list of FancyNodes
+    self.node = node # list of FancyTasks
     self.outKey = outKey # output key
   
   def __repr__(self):
@@ -358,17 +385,47 @@ class FancyArgs:
     self.args = list(args)
     self.kwargs = kwargs
 
+  @staticmethod
+  def listReady(d):
+    for i,v in enumerate(d):
+      if isinstance(v,FancyLink): return False
+      elif isinstance(v,FancyArgs) and not v.ready(): return False
+    return True
+    
+  @staticmethod
+  def dictReady(d):
+    for k,v in d.items():
+      if isinstance(v,FancyLink): return False
+      elif isinstance(v,FancyArgs) and not v.ready(): return False
+    return True
+
   def ready(self):
-    return FancyList(self.args).ready() and FancyDict(self.kwargs).ready()
+    return self.listReady(self.args) and self.dictReady(self.kwargs)
+
+  @staticmethod
+  def listSources(d):
+    ans = set()
+    for i,v in enumerate(d):
+      if isinstance(v,FancyLink): ans.add(v.node)
+      elif isinstance(v,FancyArgs): ans.update( v.sources() )
+    return ans
+
+  @staticmethod
+  def dictSources(d):
+    ans = set()
+    for k,v in self.items():
+      if isinstance(v,FancyLink): ans.add(v.node)
+      elif isinstance(v,FancyArgs): ans.update( v.sources() )
+    return ans
 
   def sources(self):
-    return FancyList(self.args).sources() | FancyDict(self.kwargs).sources()
+    return self.listSources(self.args) | self.dictSources(self.kwargs)
 
   def __getitem__(self,key):
-    return self.args[key] if isinstance(key,(int,long)) else self.kwargs[key]
+    return self.args[key] if isinstance(key,int) else self.kwargs[key]
 
   def __setitem__(self,key,val):
-    if isinstance(key,(int,long)): self.args[key] = val
+    if isinstance(key,(int)): self.args[key] = val
     else: self.kwargs[key] = val
     
 
@@ -380,17 +437,10 @@ class FancyList(list,FancyArgs):
     self.kwargs = {}
 
   def ready(self):
-    for i,v in enumerate(self):
-      if isinstance(v,FancyLink): return False
-      elif isinstance(v,FancyArgs) and not v.ready(): return False
-    return True
+    return FancyArgs.listReady(self)
 
   def sources(self):
-    ans = set()
-    for i,v in enumerate(self):
-      if isinstance(v,FancyLink): ans.add(v.node)
-      elif isinstance(v,FancyArgs): ans |= v.sources()
-    return ans
+    return FancyArgs.listSources(self)
 #endclass
 
 
@@ -402,17 +452,10 @@ class FancyDict(dict,FancyArgs):
     self.args = []
 
   def ready(self):
-    for k,v in self.iteritems():
-      if isinstance(v,FancyLink): return False
-      elif isinstance(v,FancyArgs) and not v.ready(): return False
-    return True
+    return FancyArgs.dictReady(self)
 
   def sources(self):
-    ans = set()
-    for k,v in self.iteritems():
-      if isinstance(v,FancyLink): ans.add(v.node)
-      elif isinstance(v,FancyArgs): ans |= v.sources()
-    return ans
+    return FancyArgs.dictSources(self)
 #endclass
 
 
@@ -430,68 +473,78 @@ class FancyOrderedDict(OrderedDict,FancyDict):
 FancyInput  = FancyArgs
 FancyOutput = FancyArgs
 
+## Constants to indicate the run-status of a node
+FancyTask_Inactive = 0
+FancyTask_ResolvingInput = 1
+FancyTask_Submitted = 2
+FancyTask_ResolvingOutput = 3
+FancyTask_Completed = 4
+
 ## Base class for all pipeline nodes, has all features except 
 ## calling the node from the command line.
-class FancyNode:
+class FancyTask:
   name = None
   title = None
   description = None
   inputs = {
     'tempdir':{'default':None,
-      'help':'Temp directory, to store intermediate results.'
+      'help':'Temp directory, to store intermediate results. Default: system tempdir.'
     },
     'logdir':{'default':None,
-      'help':'Log directory, to store logfile (fancylog.js + fancylog.html) and store attachments.'
+    'help':'Log directory, to store logfile (fancylog.js + fancylog.html) and store attachments. Default: tempdir.'
     },
-    'loglevel':{'type':int, 'default':1,
-      'help':'Log level, 1 for entries, 2 for standard output, 4 for data, 8 for extra.'
+    'loglevel':{'type':int, 'default':3,
+      'help':'Log level, 1 for entries, 2 for standard output, 4 for data, 8 for extra. Default: 3.'
     },
-    'logid':{'default':'1',
-      'help':'Hierarchical identifier of the log entry (e.g. "3.4.7"). Use logId=INIT to create a new empty log (error if it exists), and logId=RESET to reset (overwrite) an existing log.'
+    'taskid':{'default':'0',
+      'help':'Hierarchical identifier of the task (e.g. "3.4.7"). Use taskid=INIT to create a new empty log (error if it exists), and taskid=RESET to reset (overwrite) an existing log.'
     },
     'configfile':{'default':None,
-      'help':'Configuration file (XML or JSON), to read default parameters from.'
+      'help':'Configuration file (XML or JSON), to read default parameters from. Default: None.'
     },
     'nocleanup':{'action':'store_true', 'default':False,
-      'help':'Whether to cleanup intermediate results.'
+      'help':'Whether to cleanup intermediate results. Default: Do cleanup'
     }
   }
-
-  def __init__(self,tempdir=None,fancyClean=None,fancyConfig=None,fancyLog=None,logId='1'):
-    self.tempdir     = tempdir if tempdir else tempfile.gettempdir()
+  runStatus = FancyTask_Inactive
+  
+  def __init__(self,tempdir,fancyClean=None,fancyConfig=None,fancyLog=None,taskId='0',cmdArgs={}):
+    self._tempdir    = tempdir
     self.fancyClean  = fancyClean if fancyClean else FancyClean()
-    self.fancyClean.addCreateDir(self.tempdir)
-    self.fancyConfig = fancyConfig if fancyConfig else None
+    self.fancyConfig = fancyConfig if fancyConfig else FancyConfig()
     self.fancyLog    = fancyLog if fancyLog else FancyLog()
-    if logId == 'INIT' or logId == 'RESET': 
-      fancyLog.reset(overwrite=(logId == 'RESET'))
-      logId = '1';
-    self.logId     = logId
-    self.numLogs   = 0
-    self.doRecycle = self.fancyClean.noCleanup
-    self.doParallel = True
-    self.myInput   = FancyInput()
-    self.myOutput  = FancyOutput()
-    self.outfiles  = None # outputs that are returned as files
-    self.requests  = {} # (node,inKey) pairs that receive data from this node
+    self.taskId      = taskId
+    self.numChildren = 0
+    self.doRecycle   = self.fancyClean.noCleanup
+    self.doParallel  = True
+    self.myInput     = FancyInput()
+    self.myOutput    = FancyOutput()
+    self.outfiles    = None # outputs that are returned as files
+    self.requests    = {} # for each sourceKey, a list of target node ids to send the result to
+    self.sourceLinks = {} # for each sourceNode.sourceKey a list of (targetArgs,targetKey) pairs that this node receives data from
+    self.runStatus   = FancyTask_Inactive
     
     # Prepare inputs from defaults and configuration file.
-    kwargs = {}
-    if self.fancyConfig: kwargs.update(self.fancyConfig.classDefaults(self.__class__.__name__))
-    self.prepareInput([],self._parseInputs(kwargs))
+    self.prepareInput([],self._parseInputs(cmdArgs,self.fancyConfig.classDefaults(self.__class__.__name__)))
   
+  def __del__(self):
+    print('Cleaning up task {}'.format(self))
+
   def __repr__(self):
-    return "%s[%s]" % (self.getName(), self.logId)
+    return "%s[%s]" % (self.getName(), self.taskId)
 
   @classmethod
-  def fromParent(cls,parent,tempsubdir=None,title=None):
+  def fromParent(cls,parent,title=None):
     noCleanup = parent.fancyClean.noCleanup
+    taskId = parent.newChildId()
+    tempdir = op.join(parent._tempdir,cls.tempsubdir(parent.numChildren))
+    
     args = {
-      'tempdir': op.join(parent.tempdir,tempsubdir) if tempsubdir else parent.tempdir,
+      'tempdir': tempdir,
       'fancyClean': FancyClean(noCleanup),
       'fancyConfig': FancyConfig.fromParent(parent),
       'fancyLog': parent.fancyLog,
-      'logId': parent.newChildLogId()
+      'taskId': taskId
     }
     # Instantiate.
     self = cls(**args)
@@ -499,37 +552,64 @@ class FancyNode:
       self.title = title
     return self
 
-  def validateInputs(self,args):
-    pass
-
   # Parse external inputs, from commandline or configfile.
   @classmethod
-  def _parseInputs(cls,raw):
+  def _parseInputs(cls,raw,cfg):
     if 'inputs' not in cls.__dict__: return {}
     # positional arguments are ignored
     kwargs = {}
-    for key,inp in cls.inputs.iteritems():
+    # first loop: command line arguments
+    remaining = cls.inputs.copy()
+    for key,inp in cls.inputs.items():
       # typecast
       tp = inp['type'] if 'type' in inp else str
       if key in raw:
-        kwargs[key] = tp(raw.pop(key))
-      else:
-        if 'default' in inp:
+        kwargs[key] = tp(raw[key])
+        remaining.pop(key)
+    # second loop: configuration file arguments
+    inputs = remaining.copy()
+    for key,inp in inputs.items():
+      # typecast
+      tp = inp['type'] if 'type' in inp else str
+      if key in cfg:
+        kwargs[key] = tp(cfg[key])
+        remaining.pop(key)
+    # final loop: default arguments
+    inputs = remaining
+    for key,inp in inputs.items():
+      if 'default' in inp:
+        if hasattr(inp['default'],'__call__'):
+          kwargs[key] = inp['default'](kwargs)
+        else:
           kwargs[key] = inp['default']
+      #else:
+      #  raise ValueError('No value supplied for input argument {} {} {}'.format(key,raw,cfg))
     return kwargs
   
-  def newChildLogId(self):
-    self.numLogs += 1
-    return self.logId+'.'+str(self.numLogs)
+  @classmethod
+  def tempsubdir(cls,taskId):
+    return '{}_{}'.format(taskId,cls.__name__)
 
-  # tempfile(F) returns tempdir/F, and registers F for cleanup after running main()
+  def newChildId(self):
+    self.numChildren += 1
+    return self.taskId+'.'+str(self.numChildren)
+
+  # tempdir(subdir) returns tempdir/subdir, and registers d for cleanup after running main()
+  def tempdir(self,subdir=None):
+    td = self._tempdir
+    if subdir: 
+      td = op.join(td,subdir)
+    self.fancyClean.addCreateDir(td)
+    return td
+
+  # tempfile(f) returns tempdir/f, and registers f for cleanup after running main()
   def tempfile(self,f=None,ext='',autoclean=None):
     if f is None:
       import string
       import random
       rand8 = ''.join(random.SystemRandom().choice(string.ascii_letters + string.digits) for _ in range(8))      
       f = '{}_{}{}'.format(self.__class__.__name__.lower(),rand8,ext)
-    f = op.join(self.tempdir,f)
+    f = op.join(self.tempdir(),f)
     # DEPRECATED: self.fancyClean.addNewFile(f)
     if autoclean is None: autoclean = not self.fancyClean.noCleanup
     return FancyAutoclean(f) if autoclean and f and not op.isfile(f) else f
@@ -544,12 +624,12 @@ class FancyNode:
   def getInput(self,key=None):
     return self.myInput[key]
 
-  # Set (update) the run-input.
+  # Set (extend/update) the input for a subsequent call to run().
   def prepareInput(self,args,kwargs):
     self.myInput.args.extend(args)
     self.myInput.kwargs.update(kwargs)
 
-  # Set (update) the run-input.
+  # Set the input for a subsequent call to run(); register output files for recycling.
   def setInput(self,*args,**kwargs):
     self.prepareInput(args,kwargs)
     self.outfiles = self.outputFiles()
@@ -561,10 +641,11 @@ class FancyNode:
   def outputFiles(self):
     return FancyOutput(
       *[ v for v in self.myInput.args if isinstance(v,FancyOutputFile) ],
-      **{ k:v for k,v in self.myInput.kwargs.iteritems() if isinstance(v,FancyOutputFile) }
+      **{ k:v for k,v in self.myInput.kwargs.items() if isinstance(v,FancyOutputFile) }
     )
 
-  # Generate a link that requests output, use only in calls to setInput or setOutput.
+  # Generate a link that requests output, use this link only 
+  # to return as output of a node, or to set as input to another node.
   def requestOutput(self,key):
     try:
       return self.myOutput[key]
@@ -573,9 +654,9 @@ class FancyNode:
         try:
           f = self.outfiles[key]
           if op.isfile(f): 
-            print 'Recycling file "{}" in node {}'.format(f,self) 
+            print('Recycling file "{}" in node {}'.format(f,self))
             return f
-        except KeyError,IndexError:
+        except (KeyError,IndexError):
           pass          
       return FancyLink(self,key)
 
@@ -585,115 +666,127 @@ class FancyNode:
       raise RuntimeError('The output of node {} contains unresolved values. Use requestOutput() instead, or run the node first.'.format(self))
     return self.myOutput[key]
 
-  # Initialize requests for output from upstream nodes.
-  def initRequests(self,anyArgs,allSources):
-    def addRequest(key,source):
-      sn,sk = (source.node,source.outKey)
-      print 'Node {} requests output "{}" from node {}'.format(self,sk,sn)
-      if not sk in sn.requests: sn.requests[sk] = []
-      sn.requests[sk].append((anyArgs,key,self))
+  # Initialize requests for output from upstream nodes, called when 
+  # myInput or myOutput of a node becomes available.
+  def initRequests(self,myArgs):
+    def addRequest(tk,sl): # target key, source link
+      sn,sk = (sl.node,sl.outKey)
+      print('Node {} requests output "{}" from node {}'.format(self,sk,sn))
+      if not sk in sn.requests: sn.requests[sk] = set()
+      sn.requests[sk].add(str(self))
+      srcId = '{}.{}'.format(sn,sk)
+      if not srcId in self.sourceLinks: self.sourceLinks[srcId] = []
+      self.sourceLinks[srcId].append((myArgs,tk))
 
-    for i,v in enumerate(anyArgs.args):
-      if isinstance(v,FancyLink): addRequest(i,v)
-      elif isinstance(v,FancyArgs): self.initRequests(v,allSources)
-    for k,v in anyArgs.kwargs.iteritems():
-      if isinstance(v,FancyLink): addRequest(k,v)
-      elif isinstance(v,FancyArgs): self.initRequests(v,allSources)
+    unresolvedNodes = { str(self):self }
+    mySources = set()
+    for i,v in enumerate(myArgs.args):
+      if isinstance(v,FancyLink): 
+        addRequest(i,v)
+        mySources.add(v.node)
+      elif isinstance(v,FancyArgs): 
+        unresolvedNodes.update( self.initRequests(v) )
+    for k,v in myArgs.kwargs.items():
+      if isinstance(v,FancyLink): 
+        addRequest(k,v)
+        mySources.add(v.node)
+      elif isinstance(v,FancyArgs): 
+        unresolvedNodes.update( self.initRequests(v) )
 
-    for src in anyArgs.sources():
-      if not src in allSources:
-        allSources.add(src)
-        src.initRequests(src.myInput,allSources)
-    
-    return allSources
-
-  # Deal with unresolved links in the output.
-  def runSources(self,allSources,jobQueue,fancyMP):
-    mySources = self.initRequests(self.myOutput,set())
-    for src in mySources: allSources[str(src)] = src
     for src in mySources:
-      if src.myInput.ready():
-        jobQueue.put(src)
-        if fancyMP: fancyMP.jobCount += 1
+      if src.runStatus == FancyTask_Inactive:
+        src.runStatus = FancyTask_ResolvingInput
+        unresolvedNodes.update( src.initRequests(src.myInput) )
+    
+    return unresolvedNodes
+
+  # Fulfill requests after running (some of) the unresolved nodes.
+  # sn: source node, tn: target node
+  def fulfillRequests(self,nodeCache):
+    affectedNodes = {}
+    for sk,targets in self.requests.items():      
+      srcId = '{}.{}'.format(self,sk)
+      try:
+        val = self.myOutput if sk is None else self.myOutput.args[sk] if isinstance(sk,int) else self.myOutput.kwargs[sk]
+      except KeyError: 
+        raise KeyError('Node "{}" does not have the requested output "{}"'.format(self,key))
+      for tnId in targets:
+        tn = nodeCache[tnId]
+        affectedNodes[tnId] = tn
+        for (targetArgs,tk) in tn.sourceLinks[srcId]:
+          targetArgs[tk] = val
+    return affectedNodes
+        
+  def resolveAffected(self,affectedNodes,nodeCache,jobQueue,fancyMP):
+    nodeCache.update(affectedNodes)
+    for taskName,node in affectedNodes.items():
+      if node.runStatus == FancyTask_ResolvingInput and node.myInput.ready():
+        node.runStatus = FancyTask_Submitted
+        if fancyMP: 
+          jobQueue.put(node)
+          fancyMP.jobCount += 1
+        else:
+          jobQueue.put(str(node))
+      elif node.runStatus == FancyTask_ResolvingOutput and node.myOutput.ready():
+        node.runStatus = FancyTask_Completed
+        nodeCache.pop(taskName)
+        affectedChildren = node.fulfillRequests(nodeCache)
+        node.resolveAffected(affectedChildren,nodeCache,jobQueue,fancyMP)
     
   def logOutput(self):
-    self.fancyLog.attachResult(self.logId, 'output',self.myOutput.args,self.myOutput.kwargs)
+    self.fancyLog.attachResult(self.taskId, 'output',self.myOutput.args,self.myOutput.kwargs)
 
-  def propagateOutput(self,allSources,jobQueue,fancyMP):
-    affectedNodes = self.fulfillRequests()
-    for node in affectedNodes:
-      if str(node) in allSources:
-        if node.myInput.ready(): 
-          jobQueue.put(node)
-          if fancyMP: fancyMP.jobCount += 1
-      else:
-        if node.myOutput.ready():
-          node.propagateOutput(allSources,jobQueue,fancyMP)
-  
   def resolveOutput(self,jobQueue,fancyMP=None):
-    allSources = {}
-    self.runSources(allSources,jobQueue,fancyMP)
-    while not self.myOutput.ready():
+    # Deal with unresolved links in the output.
+    nodeCache = {}
+    affectedNodes = self.initRequests(self.myOutput)
+    self.resolveAffected(affectedNodes,nodeCache,jobQueue,fancyMP)
+    while self.runStatus is not FancyTask_Completed:
       if fancyMP:
         # parallel execution, using MultiProcessing
         if fancyMP.jobCount == 0:
           raise RuntimeError('Waiting for output but no jobs are running.')
-        (srcId,myOutput) = fancyMP.resultQueue.get(block=True)
+        (srcId,myOutput) = fancyMP.resultQueue.get()
         fancyMP.jobCount -= 1
         if srcId is None:
-          raise RuntimeError('Worker node {} encountered an error.'.format(myOutput))
-        src = allSources.pop(srcId)
+          workerName,srcId = myOutput
+          raise RuntimeError('Worker {} encountered an error while running node {}.'.format(workerName,srcId))
+        src = nodeCache[srcId]
+        src.myOutput = myOutput
       else:
         # serial execution
-        src = jobQueue.get(block=True)
-        allSources.pop(str(src))
-        myOutput = src._run()
-        
-      src.myOutput = myOutput
-      if src.myOutput.ready():
-        src.logOutput()
-        src.propagateOutput(allSources,jobQueue,fancyMP)
-      else:
-        src.runSources(allSources,jobQueue,fancyMP)
+        srcId = jobQueue.get()
+        src = nodeCache[srcId]
+        src.myOutput = src._run()
+      
+      src.runStatus = FancyTask_ResolvingOutput
+      affectedNodes = src.initRequests(src.myOutput)
+      self.resolveAffected(affectedNodes,nodeCache,jobQueue,fancyMP)
 
-  # Fulfill requests after running the upstream nodes.
-  def fulfillRequests(self):
-    affectedNodes = set()
-    # Send output to targets
-    outputRequests = self.requests.keys()
-    for key in outputRequests:
-      try:
-        val = self.myOutput if key is None else self.myOutput.args[key] if isinstance(key, (int, long)) else self.myOutput.kwargs[key]
-      except KeyError: 
-        raise KeyError('Node "{}" does not have the requested output "{}"'.format(self,key))
-      for targetArgs,targetKey,targetNode in self.requests[key]:
-        targetArgs[targetKey] = val
-        affectedNodes.add(targetNode)
-      self.requests.pop(key)
-    return affectedNodes
-        
   # Run this node and return its output: outer loop.
   def run(self):
     try:
-      self._run()
+      self.myOutput = self._run()
+      self.runStatus = FancyTask_ResolvingOutput
       if not self.myOutput.ready():
         # resolve output dependencies
         isWorker =  hasattr(multiprocessing.current_process(),'jobQueue')
         if self.doParallel and not isWorker:
-          print 'Running node {} in parallel mode.'.format(self)
+          print('Running node {} in parallel mode.'.format(self))
           fancyMP = FancyMP()
           self.resolveOutput(fancyMP.jobQueue,fancyMP)
         else:
-          print 'Running node {} in serial mode.'.format(self)
-          self.resolveOutput(Queue.Queue())
+          print('Running node {} in serial mode.'.format(self))
+          self.resolveOutput(queue.Queue())
 
       self.logOutput()
       FancyReport.success(*self.myOutput.args,**self.myOutput.kwargs)
       return self
     except:
       msg = FancyReport.traceback()
-      self.fancyLog.attachResult(self.logId,'Fatal error in node {}'.format(self),msg,{}, tp='error')
-      FancyReport.fail(__file__)
+      title = 'Fatal error in node {}.'.format(self)
+      self.fancyLog.attachResult(self.taskId,title,msg,{}, tp='error')
+      FancyReport.fail(title)
 
   # Main processing step, to be implemented by the derived class.
   def main(self,*args,**kwargs):
@@ -707,37 +800,45 @@ class FancyNode:
     # Add entry to log/console.
     name = self.getName()
     commandLine = self.getCommandLine()
-    self.fancyLog.addEntry(self.logId, name,self.myInput.args,self.myInput.kwargs, title=self.title,commandLine=commandLine)
-    self.myOutput = self._main(self.myInput)
-    if not isinstance(self.myOutput,FancyArgs):
+    self.fancyLog.addEntry(self.taskId, name,self.myInput.args,self.myInput.kwargs, title=self.title,commandLine=commandLine)
+    myOutput = self._main(self.myInput)
+    if not isinstance(myOutput,FancyArgs):
       raise RuntimeError('The function main() of node {} must return a FancyOutput(...) object.'.format(self))
+    return myOutput
 #endclass
 
 
 ## Extended class for pipeline nodes, adds support for calling the node
 ## from the command line.
-class FancyModule(FancyNode):
+class FancyModule(FancyTask):
   inputs = {}
   
   @classmethod
   def fromCommandLine(cls):
     cmdArgs = cls._getParser().parse_args().__dict__;
-    kwargs = FancyNode._parseInputs(cmdArgs)
-    logdir = kwargs['logdir']
+    kwargs = FancyTask._parseInputs(cmdArgs,{})
+    taskId = kwargs['taskid'] if kwargs['taskid'] else '0'
+    if taskId == 'INIT' or taskId == 'RESET': 
+      logReset =True
+      logOverwrite = (taskId == 'RESET')
+      taskId = '0'
+    tempdir = kwargs['tempdir'] if kwargs['tempdir'] else op.join(tempfile.gettempdir(),cls.tempsubdir(taskId))
+    logdir = kwargs['logdir'] if kwargs['logdir'] else tempdir
     loglevel = kwargs['loglevel']
+    fancyLog = FancyLog(logdir,loglevel)
+    if logReset:
+      fancyLog.reset(overwrite=logOverwrite)
     configfile = kwargs['configfile']
     kwargs = {
-      'tempdir': kwargs['tempdir'],
+      'tempdir': tempdir,
       'fancyClean': FancyClean(kwargs['nocleanup']),
-      'fancyConfig': FancyConfig.fromFile(configfile) if configfile else None,
-      'fancyLog': FancyLog(logdir,loglevel),
-      'logId': kwargs['logid']
+      'fancyConfig': FancyConfig.fromFile(configfile),
+      'fancyLog': fancyLog,
+      'taskId': taskId,
+      'cmdArgs': cmdArgs
     }
     # Instantiate.
-    self = cls(**kwargs)
-    # Update with remaining inputs from command line.
-    self.setInput(**self._parseInputs(cmdArgs))
-    return self
+    return cls(**kwargs)
 
   @classmethod
   def _getParser(cls):
@@ -746,13 +847,13 @@ class FancyModule(FancyNode):
       formatter_class=argparse.RawTextHelpFormatter,
       argument_default=argparse.SUPPRESS
     )
-    cls._extendParser(p,FancyNode.inputs)
+    cls._extendParser(p,FancyTask.inputs)
     cls._extendParser(p,cls.inputs)
     return p
 
   @classmethod
   def _extendParser(cls,p,inputs):
-    for key,inp in inputs.iteritems():
+    for key,inp in inputs.items():
       inp = inp.copy()
       dest = ['-{}'.format(key),'--{}'.format(key)]
       inp['required'] = False if 'default' in inp else True
@@ -766,7 +867,7 @@ class FancyModule(FancyNode):
     # Create mainInput from myInput (default: same).
     mainInput = self.beforeMain(*myInput.args,**myInput.kwargs)
     # Main processing step.
-    mainOutput = FancyNode._main(self,mainInput)
+    mainOutput = FancyTask._main(self,mainInput)
     # Create myOutput from mainOutput (default: same).
     return self.afterMain(*mainOutput.args,**mainOutput.kwargs)
 
@@ -793,14 +894,14 @@ class FancyExec(FancyModule):
   def getCommandLine(self):
     mainInput = self.beforeMain(*self.myInput.args,**self.myInput.kwargs)
     cmd = list(mainInput.args);
-    for k,v in mainInput.kwargs.iteritems(): cmd.extend([k,v])
+    for k,v in mainInput.kwargs.items(): cmd.extend([k,v])
     return ' '.join(['{}'.format(v) for v in cmd])
 
   def main(self,*args,**kwargs):
     cmd = list(args);
-    for k,v in kwargs.iteritems(): cmd.extend([k,v])
-    stdout = subprocess.check_output(cmd, shell=False, stderr=subprocess.STDOUT)
-    self.fancyLog.attachResult(self.logId, 'stdout',stdout.split('\n'),{}, tp='longtext')
+    for k,v in kwargs.items(): cmd.extend([k,v])
+    stdout = subprocess.check_output(cmd, shell=False, stderr=subprocess.STDOUT).decode('utf-8')
+    self.fancyLog.attachResult(self.taskId, 'stdout',stdout.split('\n'),{}, tp='longtext')
     return FancyOutput(stdout)
     
   def afterMain(self,stdout):
@@ -808,7 +909,7 @@ class FancyExec(FancyModule):
     # If no output files have been defined, then assume that
     # outputs are stored in files with the name given by the corresponding input
     kwargs = {}
-    for k,_ in self.requests.iteritems():
+    for k,_ in self.requests.items():
       kwargs[k] = self.getInput(k)
     return FancyOutput(**kwargs)
 #endclass
@@ -822,20 +923,26 @@ class FancyWorker(multiprocessing.Process):
     self.resultQueue = resultQueue
 
   def run(self):
+    node = False
     while True:
       try:
         node = self.jobQueue.get()
         if node is None:
           # Poison pill means shutdown
-          print 'Exiting fancy worker {}'.format(self.name)
+          print('Exiting worker {}'.format(self.name))
           break
-        node._run()
-        self.resultQueue.put((str(node),node.myOutput))
+        myOutput = node._run()
+        self.resultQueue.put((str(node),myOutput))
+        node = False
       except:
         msg = FancyReport.traceback()
-        node.fancyLog.attachResult(node.logId,'Fatal error in worker {} during/after execution of node {}'.format(self.name,node),msg,{}, tp='error')
-        self.resultQueue.put((None,self.name))
-        FancyReport.fail(__file__)
+        if node:
+          title = 'Fatal error in worker {} while running node {}.'.format(self.name,node)
+          node.fancyLog.attachResult(node.taskId,title,msg,{}, tp='error')
+          self.resultQueue.put((None,(self.name,str(node))))
+        else:
+          title = 'Fatal error in worker {}:\n{}'.format(self.name,msg)
+        FancyReport.fail(title)
     return
 #endclass
 
@@ -843,15 +950,17 @@ class FancyWorker(multiprocessing.Process):
 ## Used when running in multi-process mode, maintains a pool of workers.
 class FancyMP:
   def __init__(self,numWorkers='auto'):
+    self.workers = []
+    from multiprocessing.queues import Queue,SimpleQueue
     self.jobQueue = multiprocessing.Queue()
     self.resultQueue = multiprocessing.Queue()
     self.jobCount = 0
     self.resultCount = 0
     if numWorkers == 'auto': numWorkers = multiprocessing.cpu_count()
-    self.workers = []
-    for w in xrange(numWorkers):
+    for w in range(numWorkers):
       worker = FancyWorker(self.jobQueue, self.resultQueue)
       self.workers.append(worker)
+      #worker.daemon = True
       worker.start()
 
   def __del__(self):
