@@ -10,7 +10,7 @@ main job: the design of the processing steps.
 
 FancyPipe takes care of:
 
-* parallel execution of code
+* parallel and distributed execution of code
 * html-based, hierarchical logging
 * pipeline parameter management
 * command line interface
@@ -50,8 +50,8 @@ use:
 
 When module2 is run, FancyPipe will automatically detect that its inputs 
 contain output-requests to module1a and module1b, and it will run these 
-modules in parallel. This illustrates the basic idea, the `parallel 
-programming page` describes more complex cases.
+modules in parallel. This illustrates the basic idea, the 
+`parallel programming page <parallelprogramming.html>`_ describes more complex cases.
 
 
 HTML logging
@@ -115,6 +115,8 @@ Documentation tree
 .. toctree::
   :maxdepth: 2
    
+  parallelprogramming
+  parallelprocessing
   classesmethods
 
 Indices and tables

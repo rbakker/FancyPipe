@@ -1,13 +1,13 @@
 import sys
 sys.path.append('../fancypipe')
-import fancypipe as fp
+from fancypipe import *
 
-class ComplexTask(fp.FancyTask):
+class ComplexTask(FancyTask):
   def main(self,x,a):
     y = x*a
-    return fp.FancyOutput(y=y)
+    return FancyOutput(y=y)
     
-class MainModule(fp.FancyModule):
+class MainModule(FancyModule):
   inputs = {
     'x':{'default':5, 'help':'input x'},
     'a1':{'default':100, 'help':'parameter value 1'},
@@ -21,8 +21,8 @@ class MainModule(fp.FancyModule):
     co2 = ComplexTask.fromParent(self).setInput(
       x = x,
       a = a2
-    )
-    return fp.FancyOutput(
+    ).run()
+    return FancyOutput(
       y1 = co1.requestOutput('y'),
       y2 = co2.requestOutput('y')
     )
