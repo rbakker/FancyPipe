@@ -21,7 +21,7 @@ class MainModule(FancyModule):
     co2 = ComplexTask.fromParent(self).setInput(
       x = x,
       a = a2
-    ).run()
+    )
     return FancyOutput(
       y1 = co1.requestOutput('y'),
       y2 = co2.requestOutput('y')

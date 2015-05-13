@@ -35,7 +35,7 @@ run the python interpreter at a time.
 The option "-workertype=T" invokes multi-threading.
 
 The option "-numworkers=X" creates X worker threads. By default, one 
-worker per cpu is created.
+thread per cpu is created.
 
 Multi-processing
 ................
@@ -45,10 +45,10 @@ task. This requires more overhead and memory than multi-threading, as it
 involves serializing and copying the input and output data of the tasks. 
 This all happens behind the scene.
 
-The option "-workertype P" invokes multi-processing.
+The option "-workertype=P" invokes multi-processing.
 
-The option "-numworkers=X" creates X worker threads. By default, one 
-worker per cpu is created.
+The option "-numworkers=X" creates X worker processes. By default, one 
+process per cpu is created.
 
 Distributed processing
 ......................
