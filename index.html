@@ -25,14 +25,9 @@
     <script type="text/javascript" src="_static/doctools.js"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="top" title="FancyPipe 1.0 documentation" href="#" />
-    <link rel="next" title="Classes and methods" href="classesmethods.html" /> 
+    <link rel="next" title="Parallel programming" href="parallelprogramming.html" /> 
   </head>
   <body>
-<div style="background-color: white; text-align: left; padding: 10px 10px 15px 15px">
-<a href="#">
-<img src="_static/FancyPipe.png" border="0" alt="FancyPipe"/></a>
-</div>
-
     <div class="related">
       <h3>Navigation</h3>
       <ul>
@@ -43,14 +38,16 @@
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="classesmethods.html" title="Classes and methods"
+          <a href="parallelprogramming.html" title="Parallel programming"
              accesskey="N">next</a> |</li>
         <li><a href="#">FancyPipe 1.0 documentation</a> &raquo;</li> 
       </ul>
     </div>
-
       <div class="sphinxsidebar">
         <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="#">
+              <img class="logo" src="_static/fancypipelogo.jpg" alt="Logo"/>
+            </a></p>
   <h3><a href="#">Table Of Contents</a></h3>
   <ul>
 <li><a class="reference internal" href="#">FancyPipe</a><ul>
@@ -67,8 +64,8 @@
 </ul>
 
   <h4>Next topic</h4>
-  <p class="topless"><a href="classesmethods.html"
-                        title="next chapter">Classes and methods</a></p>
+  <p class="topless"><a href="parallelprogramming.html"
+                        title="next chapter">Parallel programming</a></p>
   <h3>This Page</h3>
   <ul class="this-page-menu">
     <li><a href="_sources/index.txt"
@@ -97,15 +94,15 @@
             
   <div class="section" id="fancypipe">
 <h1>FancyPipe<a class="headerlink" href="#fancypipe" title="Permalink to this headline">¶</a></h1>
-<p>The FancyPipe Engine is a open source python package for running
-cpu-intensive data processing pipelines. It covers those aspects
-that would otherwise distract you from your main job: the design of the
-processing steps.</p>
+<p>FancyPipe is an open <a class="reference external" href="https://github.com/rbakker/FancyPipe">source</a>
+python package for running cpu-intensive data processing pipelines.
+It covers those aspects that would otherwise distract you from your
+main job: the design of the processing steps.</p>
 <p>FancyPipe takes care of:</p>
 <ul class="simple">
-<li>parallel execution of code</li>
-<li>html-based, hierarchical log file</li>
-<li>parameter management</li>
+<li>parallel and distributed execution of code</li>
+<li>html-based, hierarchical logging</li>
+<li>pipeline parameter management</li>
 <li>command line interface</li>
 <li>temporary files and garbage collection</li>
 <li>error handling</li>
@@ -138,8 +135,8 @@ use:</p>
 </div>
 <p>When module2 is run, FancyPipe will automatically detect that its inputs
 contain output-requests to module1a and module1b, and it will run these
-modules in parallel. This illustrates the basic idea, the <cite>parallel
-programming page</cite> describes more complex cases.</p>
+modules in parallel. This illustrates the basic idea, the
+<a class="reference external" href="parallelprogramming.html">parallel programming page</a> describes more complex cases.</p>
 </div>
 <div class="section" id="html-logging">
 <h2>HTML logging<a class="headerlink" href="#html-logging" title="Permalink to this headline">¶</a></h2>
@@ -195,6 +192,11 @@ the html log file.</p>
 <h2>Documentation tree<a class="headerlink" href="#documentation-tree" title="Permalink to this headline">¶</a></h2>
 <div class="toctree-wrapper compound">
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="parallelprogramming.html">Parallel programming</a></li>
+<li class="toctree-l1"><a class="reference internal" href="parallelprocessing.html">Parallel processing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="parallelprocessing.html#multi-threading-multi-processing-and-distributed-processing">Multi-threading, multi-processing, and distributed processing</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="classesmethods.html">Classes and methods</a></li>
 </ul>
 </div>
@@ -225,7 +227,7 @@ the html log file.</p>
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="classesmethods.html" title="Classes and methods"
+          <a href="parallelprogramming.html" title="Parallel programming"
              >next</a> |</li>
         <li><a href="#">FancyPipe 1.0 documentation</a> &raquo;</li> 
       </ul>

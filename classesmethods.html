@@ -25,14 +25,9 @@
     <script type="text/javascript" src="_static/doctools.js"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="top" title="FancyPipe 1.0 documentation" href="index.html" />
-    <link rel="prev" title="FancyPipe" href="index.html" /> 
+    <link rel="prev" title="Parallel processing" href="parallel.html" /> 
   </head>
   <body>
-<div style="background-color: white; text-align: left; padding: 10px 10px 15px 15px">
-<a href="index.html">
-<img src="_static/FancyPipe.png" border="0" alt="FancyPipe"/></a>
-</div>
-
     <div class="related">
       <h3>Navigation</h3>
       <ul>
@@ -43,17 +38,19 @@
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="index.html" title="FancyPipe"
+          <a href="parallel.html" title="Parallel processing"
              accesskey="P">previous</a> |</li>
         <li><a href="index.html">FancyPipe 1.0 documentation</a> &raquo;</li> 
       </ul>
     </div>
-
       <div class="sphinxsidebar">
         <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="index.html">
+              <img class="logo" src="_static/fancypipelogo.jpg" alt="Logo"/>
+            </a></p>
   <h4>Previous topic</h4>
-  <p class="topless"><a href="index.html"
-                        title="previous chapter">FancyPipe</a></p>
+  <p class="topless"><a href="parallel.html"
+                        title="previous chapter">Parallel processing</a></p>
   <h3>This Page</h3>
   <ul class="this-page-menu">
     <li><a href="_sources/classesmethods.txt"
@@ -83,10 +80,105 @@
   <div class="section" id="classes-and-methods">
 <h1>Classes and methods<a class="headerlink" href="#classes-and-methods" title="Permalink to this headline">¶</a></h1>
 <p>These are the classes and methods contained in the FancyPipe module.</p>
-<span class="target" id="module-fancypipe"></span><dl class="class">
+<span class="target" id="module-fancypipe"></span><dl class="function">
+<dt id="fancypipe.assertPassword">
+<tt class="descclassname">fancypipe.</tt><tt class="descname">assertPassword</tt><big>(</big><em>s</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#assertPassword"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.assertPassword" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="fancypipe.assertBool">
+<tt class="descclassname">fancypipe.</tt><tt class="descname">assertBool</tt><big>(</big><em>s</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#assertBool"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.assertBool" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="fancypipe.assertFile">
+<tt class="descclassname">fancypipe.</tt><tt class="descname">assertFile</tt><big>(</big><em>s</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#assertFile"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.assertFile" title="Permalink to this definition">¶</a></dt>
+<dd><p>Assert that the input is an existing file.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="fancypipe.assertDir">
+<tt class="descclassname">fancypipe.</tt><tt class="descname">assertDir</tt><big>(</big><em>s</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#assertDir"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.assertDir" title="Permalink to this definition">¶</a></dt>
+<dd><p>Assert that the input is an existing directory.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="fancypipe.assertList">
+<tt class="descclassname">fancypipe.</tt><tt class="descname">assertList</tt><big>(</big><em>s</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#assertList"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.assertList" title="Permalink to this definition">¶</a></dt>
+<dd><p>Assert that the input is a list or tuple.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="fancypipe.assertDict">
+<tt class="descclassname">fancypipe.</tt><tt class="descname">assertDict</tt><big>(</big><em>s</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#assertDict"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.assertDict" title="Permalink to this definition">¶</a></dt>
+<dd><p>Assert that the input is a dictionary.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="fancypipe.assertExec">
+<tt class="descclassname">fancypipe.</tt><tt class="descname">assertExec</tt><big>(</big><em>s</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#assertExec"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.assertExec" title="Permalink to this definition">¶</a></dt>
+<dd><p>Assert that the input can be executed and return the full path to the executable.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="fancypipe.assertToken">
+<tt class="descclassname">fancypipe.</tt><tt class="descname">assertToken</tt><big>(</big><em>s</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#assertToken"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.assertToken" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="fancypipe.assertMatch">
+<tt class="descclassname">fancypipe.</tt><tt class="descname">assertMatch</tt><big>(</big><em>regexp</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#assertMatch"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.assertMatch" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="fancypipe.assertInstance">
+<tt class="descclassname">fancypipe.</tt><tt class="descname">assertInstance</tt><big>(</big><em>cls</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#assertInstance"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.assertInstance" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="fancypipe.assertType">
+<tt class="descclassname">fancypipe.</tt><tt class="descname">assertType</tt><big>(</big><em>tp</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#assertType"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.assertType" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="class">
+<dt id="fancypipe.FancyOutputFile">
+<em class="property">class </em><tt class="descclassname">fancypipe.</tt><tt class="descname">FancyOutputFile</tt><big>(</big><em>s</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyOutputFile"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyOutputFile" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="class">
+<dt id="fancypipe.FancyPassword">
+<em class="property">class </em><tt class="descclassname">fancypipe.</tt><tt class="descname">FancyPassword</tt><big>(</big><em>pwd</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyPassword"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyPassword" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="class">
+<dt id="fancypipe.FancyLink">
+<em class="property">class </em><tt class="descclassname">fancypipe.</tt><tt class="descname">FancyLink</tt><big>(</big><em>task</em>, <em>outKey</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyLink"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyLink" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="class">
 <dt id="fancypipe.FancyArgs">
 <em class="property">class </em><tt class="descclassname">fancypipe.</tt><tt class="descname">FancyArgs</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyArgs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyArgs" title="Permalink to this definition">¶</a></dt>
-<dd><dl class="method">
+<dd><dl class="staticmethod">
+<dt id="fancypipe.FancyArgs.dictReady">
+<em class="property">static </em><tt class="descname">dictReady</tt><big>(</big><em>d</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyArgs.dictReady"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyArgs.dictReady" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="fancypipe.FancyArgs.dictSources">
+<em class="property">static </em><tt class="descname">dictSources</tt><big>(</big><em>d</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyArgs.dictSources"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyArgs.dictSources" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="fancypipe.FancyArgs.listReady">
+<em class="property">static </em><tt class="descname">listReady</tt><big>(</big><em>d</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyArgs.listReady"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyArgs.listReady" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="fancypipe.FancyArgs.listSources">
+<em class="property">static </em><tt class="descname">listSources</tt><big>(</big><em>d</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyArgs.listSources"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyArgs.listSources" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
 <dt id="fancypipe.FancyArgs.ready">
 <tt class="descname">ready</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyArgs.ready"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyArgs.ready" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
@@ -98,52 +190,29 @@
 
 </dd></dl>
 
-<dl class="class">
-<dt id="fancypipe.FancyAutoclean">
-<em class="property">class </em><tt class="descclassname">fancypipe.</tt><tt class="descname">FancyAutoclean</tt><big>(</big><em>f</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyAutoclean"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyAutoclean" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dl class="attribute">
+<dt id="fancypipe.FancyOutput">
+<tt class="descclassname">fancypipe.</tt><tt class="descname">FancyOutput</tt><a class="headerlink" href="#fancypipe.FancyOutput" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <a class="reference internal" href="#fancypipe.FancyArgs" title="fancypipe.FancyArgs"><tt class="xref py py-class docutils literal"><span class="pre">FancyArgs</span></tt></a></p>
+</dd></dl>
 
-<dl class="class">
-<dt id="fancypipe.FancyClean">
-<em class="property">class </em><tt class="descclassname">fancypipe.</tt><tt class="descname">FancyClean</tt><big>(</big><em>noCleanup=False</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyClean"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyClean" title="Permalink to this definition">¶</a></dt>
-<dd><dl class="method">
-<dt id="fancypipe.FancyClean.addCreateDir">
-<tt class="descname">addCreateDir</tt><big>(</big><em>d</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyClean.addCreateDir"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyClean.addCreateDir" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="method">
-<dt id="fancypipe.FancyClean.addNewFile">
-<tt class="descname">addNewFile</tt><big>(</big><em>f</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyClean.addNewFile"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyClean.addNewFile" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="method">
-<dt id="fancypipe.FancyClean.cleanup">
-<tt class="descname">cleanup</tt><big>(</big><em>exclude=None</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyClean.cleanup"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyClean.cleanup" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
+<dl class="attribute">
+<dt id="fancypipe.FancyInput">
+<tt class="descclassname">fancypipe.</tt><tt class="descname">FancyInput</tt><a class="headerlink" href="#fancypipe.FancyInput" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <a class="reference internal" href="#fancypipe.FancyArgs" title="fancypipe.FancyArgs"><tt class="xref py py-class docutils literal"><span class="pre">FancyArgs</span></tt></a></p>
 </dd></dl>
 
 <dl class="class">
-<dt id="fancypipe.FancyConfig">
-<em class="property">class </em><tt class="descclassname">fancypipe.</tt><tt class="descname">FancyConfig</tt><big>(</big><em>config</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyConfig"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyConfig" title="Permalink to this definition">¶</a></dt>
+<dt id="fancypipe.FancyList">
+<em class="property">class </em><tt class="descclassname">fancypipe.</tt><tt class="descname">FancyList</tt><big>(</big><em>args</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyList"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyList" title="Permalink to this definition">¶</a></dt>
 <dd><dl class="method">
-<dt id="fancypipe.FancyConfig.classDefaults">
-<tt class="descname">classDefaults</tt><big>(</big><em>nodeClass</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyConfig.classDefaults"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyConfig.classDefaults" title="Permalink to this definition">¶</a></dt>
+<dt id="fancypipe.FancyList.ready">
+<tt class="descname">ready</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyList.ready"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyList.ready" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="staticmethod">
-<dt id="fancypipe.FancyConfig.etree_to_odict">
-<em class="property">static </em><tt class="descname">etree_to_odict</tt><big>(</big><em>t</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyConfig.etree_to_odict"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyConfig.etree_to_odict" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="classmethod">
-<dt id="fancypipe.FancyConfig.fromFile">
-<em class="property">classmethod </em><tt class="descname">fromFile</tt><big>(</big><em>configFile</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyConfig.fromFile"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyConfig.fromFile" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="classmethod">
-<dt id="fancypipe.FancyConfig.fromParent">
-<em class="property">classmethod </em><tt class="descname">fromParent</tt><big>(</big><em>parentNode</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyConfig.fromParent"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyConfig.fromParent" title="Permalink to this definition">¶</a></dt>
+<dl class="method">
+<dt id="fancypipe.FancyList.sources">
+<tt class="descname">sources</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyList.sources"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyList.sources" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 </dd></dl>
@@ -164,9 +233,239 @@
 </dd></dl>
 
 <dl class="class">
+<dt id="fancypipe.Task">
+<em class="property">class </em><tt class="descclassname">fancypipe.</tt><tt class="descname">Task</tt><big>(</big><em>taskId=None</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#Task"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.Task" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="classmethod">
+<dt id="fancypipe.Task.fromParent">
+<em class="property">classmethod </em><tt class="descname">fromParent</tt><big>(</big><em>parent</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#Task.fromParent"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.Task.fromParent" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="fancypipe.Task.fulfillRequests">
+<tt class="descname">fulfillRequests</tt><big>(</big><em>taskCache</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#Task.fulfillRequests"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.Task.fulfillRequests" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="fancypipe.Task.getInput">
+<tt class="descname">getInput</tt><big>(</big><em>key=None</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#Task.getInput"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.Task.getInput" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="fancypipe.Task.getName">
+<tt class="descname">getName</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/fancypipe.html#Task.getName"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.Task.getName" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="fancypipe.Task.getOutput">
+<tt class="descname">getOutput</tt><big>(</big><em>key=None</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#Task.getOutput"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.Task.getOutput" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="fancypipe.Task.initRequests">
+<tt class="descname">initRequests</tt><big>(</big><em>myArgs</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#Task.initRequests"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.Task.initRequests" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="fancypipe.Task.jobAuth">
+<tt class="descname">jobAuth</tt><em class="property"> = None</em><a class="headerlink" href="#fancypipe.Task.jobAuth" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="fancypipe.Task.jobManager">
+<tt class="descname">jobManager</tt><em class="property"> = False</em><a class="headerlink" href="#fancypipe.Task.jobManager" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="fancypipe.Task.logEntry">
+<tt class="descname">logEntry</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/fancypipe.html#Task.logEntry"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.Task.logEntry" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="fancypipe.Task.logError">
+<tt class="descname">logError</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/fancypipe.html#Task.logError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.Task.logError" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="fancypipe.Task.logOutput">
+<tt class="descname">logOutput</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/fancypipe.html#Task.logOutput"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.Task.logOutput" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="fancypipe.Task.main">
+<tt class="descname">main</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#Task.main"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.Task.main" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="fancypipe.Task.name">
+<tt class="descname">name</tt><em class="property"> = None</em><a class="headerlink" href="#fancypipe.Task.name" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="fancypipe.Task.newChildId">
+<tt class="descname">newChildId</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/fancypipe.html#Task.newChildId"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.Task.newChildId" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="fancypipe.Task.numChildren">
+<tt class="descname">numChildren</tt><em class="property"> = 0</em><a class="headerlink" href="#fancypipe.Task.numChildren" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="fancypipe.Task.numWorkers">
+<tt class="descname">numWorkers</tt><em class="property"> = False</em><a class="headerlink" href="#fancypipe.Task.numWorkers" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="fancypipe.Task.prepareInput">
+<tt class="descname">prepareInput</tt><big>(</big><em>args</em>, <em>kwargs</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#Task.prepareInput"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.Task.prepareInput" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="fancypipe.Task.requestOutput">
+<tt class="descname">requestOutput</tt><big>(</big><em>key</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#Task.requestOutput"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.Task.requestOutput" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="fancypipe.Task.resolveAffected">
+<tt class="descname">resolveAffected</tt><big>(</big><em>affectedTasks</em>, <em>taskCache</em>, <em>jobQueue</em>, <em>fancyPool</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#Task.resolveAffected"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.Task.resolveAffected" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="fancypipe.Task.resolveOutput">
+<tt class="descname">resolveOutput</tt><big>(</big><em>jobQueue</em>, <em>fancyPool=None</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#Task.resolveOutput"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.Task.resolveOutput" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="fancypipe.Task.run">
+<tt class="descname">run</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/fancypipe.html#Task.run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.Task.run" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="fancypipe.Task.runStatus">
+<tt class="descname">runStatus</tt><em class="property"> = 0</em><a class="headerlink" href="#fancypipe.Task.runStatus" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="fancypipe.Task.setInput">
+<tt class="descname">setInput</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#Task.setInput"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.Task.setInput" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="fancypipe.Task.taskId">
+<tt class="descname">taskId</tt><em class="property"> = '0'</em><a class="headerlink" href="#fancypipe.Task.taskId" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="fancypipe.Task.workerType">
+<tt class="descname">workerType</tt><em class="property"> = 'P'</em><a class="headerlink" href="#fancypipe.Task.workerType" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="fancypipe.FancyTask">
+<em class="property">class </em><tt class="descclassname">fancypipe.</tt><tt class="descname">FancyTask</tt><big>(</big><em>tempdir</em>, <em>fancyClean</em>, <em>fancyConfig</em>, <em>fancyLog</em>, <em>taskId</em>, <em>cmdArgs={}</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyTask"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyTask" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="classmethod">
+<dt id="fancypipe.FancyTask.fromParent">
+<em class="property">classmethod </em><tt class="descname">fromParent</tt><big>(</big><em>parent</em>, <em>title=None</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyTask.fromParent"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyTask.fromParent" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="fancypipe.FancyTask.getCommandLine">
+<tt class="descname">getCommandLine</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyTask.getCommandLine"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyTask.getCommandLine" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="fancypipe.FancyTask.logEntry">
+<tt class="descname">logEntry</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyTask.logEntry"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyTask.logEntry" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="fancypipe.FancyTask.logError">
+<tt class="descname">logError</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyTask.logError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyTask.logError" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="fancypipe.FancyTask.logOutput">
+<tt class="descname">logOutput</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyTask.logOutput"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyTask.logOutput" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="fancypipe.FancyTask.outfiles">
+<tt class="descname">outfiles</tt><em class="property"> = None</em><a class="headerlink" href="#fancypipe.FancyTask.outfiles" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="fancypipe.FancyTask.outputFiles">
+<tt class="descname">outputFiles</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyTask.outputFiles"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyTask.outputFiles" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="fancypipe.FancyTask.requestOutput">
+<tt class="descname">requestOutput</tt><big>(</big><em>key</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyTask.requestOutput"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyTask.requestOutput" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="fancypipe.FancyTask.setInput">
+<tt class="descname">setInput</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyTask.setInput"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyTask.setInput" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="fancypipe.FancyTask.tempdir">
+<tt class="descname">tempdir</tt><big>(</big><em>subdir=None</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyTask.tempdir"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyTask.tempdir" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="fancypipe.FancyTask.tempfile">
+<tt class="descname">tempfile</tt><big>(</big><em>f=None</em>, <em>ext=''</em>, <em>autoclean=None</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyTask.tempfile"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyTask.tempfile" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="classmethod">
+<dt id="fancypipe.FancyTask.tempsubdir">
+<em class="property">classmethod </em><tt class="descname">tempsubdir</tt><big>(</big><em>taskId</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyTask.tempsubdir"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyTask.tempsubdir" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="fancypipe.FancyTask.title">
+<tt class="descname">title</tt><em class="property"> = None</em><a class="headerlink" href="#fancypipe.FancyTask.title" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="fancypipe.FancyModule">
+<em class="property">class </em><tt class="descclassname">fancypipe.</tt><tt class="descname">FancyModule</tt><big>(</big><em>tempdir</em>, <em>fancyClean</em>, <em>fancyConfig</em>, <em>fancyLog</em>, <em>taskId</em>, <em>cmdArgs={}</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyModule"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyModule" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="method">
+<dt id="fancypipe.FancyModule.afterMain">
+<tt class="descname">afterMain</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyModule.afterMain"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyModule.afterMain" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="fancypipe.FancyModule.beforeMain">
+<tt class="descname">beforeMain</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyModule.beforeMain"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyModule.beforeMain" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="fancypipe.FancyModule.description">
+<tt class="descname">description</tt><em class="property"> = None</em><a class="headerlink" href="#fancypipe.FancyModule.description" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="classmethod">
+<dt id="fancypipe.FancyModule.fromCommandLine">
+<em class="property">classmethod </em><tt class="descname">fromCommandLine</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyModule.fromCommandLine"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyModule.fromCommandLine" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="fancypipe.FancyModule.inputs">
+<tt class="descname">inputs</tt><em class="property"> = {'workertype': {'default': 'P', 'type': &lt;function f at 0x7f4f52762e60&gt;, 'help': 'Either &quot;T&quot; or &quot;P&quot;: T uses multi-threading while P uses multi-processing. Use T when the pipeline mainly involves calls to external programs; use P when Python itself is used for number-crunching.'}, 'loglevel': {'default': 3, 'type': &lt;type 'int'&gt;, 'help': 'Log level, 1 for entries, 2 for standard output, 4 for data, 8 for extra. Default: 3.'}, 'configfile': {'default': None, 'help': 'Configuration file (XML or JSON), to read default parameters from. Default: None.'}, 'jobauth': {'default': 'abracadabra', 'help': 'Authorization key for submitting jobs to the job manager (default: abracadabra).'}, 'logdir': {'default': None, 'help': 'Log directory, to store logfile (fancylog.js + fancylog.html) and attachments. Default: tempdir.'}, 'taskid': {'default': '0', 'help': 'Hierarchical identifier of the task (e.g. &quot;3.4.7&quot;). Use taskid=INIT to create a new empty log (error if it exists), and taskid=RESET to reset (overwrite) an existing log.'}, 'numworkers': {'default': 'auto', 'type': &lt;function f at 0x7f4f52762ed8&gt;, 'help': 'Number of parallel workers. Default: number of CPUs.'}, 'tempdir': {'default': None, 'help': 'Temp directory, to store intermediate results. Default: system tempdir.'}, 'nocleanup': {'action': 'store_true', 'default': False, 'help': 'Whether to cleanup intermediate results. Default: Do cleanup'}, 'jobmanager': {'default': False, 'help': 'Address (ip-address:port) of job manager started with &quot;python fancymanager.py-auth=abracadabra&quot;'}}</em><a class="headerlink" href="#fancypipe.FancyModule.inputs" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
 <dt id="fancypipe.FancyExec">
-<em class="property">class </em><tt class="descclassname">fancypipe.</tt><tt class="descname">FancyExec</tt><big>(</big><em>tempdir=None</em>, <em>fancyClean=None</em>, <em>fancyConfig=None</em>, <em>fancyLog=None</em>, <em>logId='1'</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyExec"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyExec" title="Permalink to this definition">¶</a></dt>
-<dd><p>Extended class for pipeline nodes that execute jobs outside of Python,
+<em class="property">class </em><tt class="descclassname">fancypipe.</tt><tt class="descname">FancyExec</tt><big>(</big><em>tempdir</em>, <em>fancyClean</em>, <em>fancyConfig</em>, <em>fancyLog</em>, <em>taskId</em>, <em>cmdArgs={}</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyExec"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyExec" title="Permalink to this definition">¶</a></dt>
+<dd><p>Extended class for pipeline tasks that execute jobs outside of Python,
 with a pre-defined main method.</p>
 <dl class="method">
 <dt id="fancypipe.FancyExec.afterMain">
@@ -191,37 +490,22 @@ with a pre-defined main method.</p>
 </dd></dl>
 
 <dl class="attribute">
-<dt id="fancypipe.FancyInput">
-<tt class="descclassname">fancypipe.</tt><tt class="descname">FancyInput</tt><a class="headerlink" href="#fancypipe.FancyInput" title="Permalink to this definition">¶</a></dt>
-<dd><p>alias of <a class="reference internal" href="#fancypipe.FancyArgs" title="fancypipe.FancyArgs"><tt class="xref py py-class docutils literal"><span class="pre">FancyArgs</span></tt></a></p>
-</dd></dl>
-
-<dl class="class">
-<dt id="fancypipe.FancyLink">
-<em class="property">class </em><tt class="descclassname">fancypipe.</tt><tt class="descname">FancyLink</tt><big>(</big><em>node</em>, <em>outKey</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyLink"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyLink" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="class">
-<dt id="fancypipe.FancyList">
-<em class="property">class </em><tt class="descclassname">fancypipe.</tt><tt class="descname">FancyList</tt><big>(</big><em>args</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyList"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyList" title="Permalink to this definition">¶</a></dt>
-<dd><dl class="method">
-<dt id="fancypipe.FancyList.ready">
-<tt class="descname">ready</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyList.ready"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyList.ready" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="method">
-<dt id="fancypipe.FancyList.sources">
-<tt class="descname">sources</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyList.sources"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyList.sources" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
+<dt id="fancypipe.FancyNode">
+<tt class="descclassname">fancypipe.</tt><tt class="descname">FancyNode</tt><a class="headerlink" href="#fancypipe.FancyNode" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <a class="reference internal" href="#fancypipe.FancyTask" title="fancypipe.FancyTask"><tt class="xref py py-class docutils literal"><span class="pre">FancyTask</span></tt></a></p>
 </dd></dl>
 
 <dl class="class">
 <dt id="fancypipe.FancyLog">
-<em class="property">class </em><tt class="descclassname">fancypipe.</tt><tt class="descname">FancyLog</tt><big>(</big><em>logdir=None</em>, <em>loglevel=1</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyLog"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyLog" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">fancypipe.</tt><tt class="descname">FancyLog</tt><big>(</big><em>logdir=None</em>, <em>loglevel=3</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyLog"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyLog" title="Permalink to this definition">¶</a></dt>
 <dd><dl class="method">
 <dt id="fancypipe.FancyLog.addEntry">
 <tt class="descname">addEntry</tt><big>(</big><em>logId</em>, <em>cmd</em>, <em>args</em>, <em>kwargs</em>, <em>title=None</em>, <em>commandLine=None</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyLog.addEntry"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyLog.addEntry" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="fancypipe.FancyLog.appendLog">
+<tt class="descname">appendLog</tt><big>(</big><em>s</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyLog.appendLog"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyLog.appendLog" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="method">
@@ -232,6 +516,11 @@ with a pre-defined main method.</p>
 <dl class="method">
 <dt id="fancypipe.FancyLog.attachResult">
 <tt class="descname">attachResult</tt><big>(</big><em>logId</em>, <em>name</em>, <em>args=None</em>, <em>kwargs=None</em>, <em>tp=None</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyLog.attachResult"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyLog.attachResult" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="classmethod">
+<dt id="fancypipe.FancyLog.fromParent">
+<em class="property">classmethod </em><tt class="descname">fromParent</tt><big>(</big><em>parentTask</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyLog.fromParent"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyLog.fromParent" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="method">
@@ -256,252 +545,6 @@ with a pre-defined main method.</p>
 
 </dd></dl>
 
-<dl class="class">
-<dt id="fancypipe.FancyMP">
-<em class="property">class </em><tt class="descclassname">fancypipe.</tt><tt class="descname">FancyMP</tt><big>(</big><em>numWorkers='auto'</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyMP"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyMP" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="class">
-<dt id="fancypipe.FancyModule">
-<em class="property">class </em><tt class="descclassname">fancypipe.</tt><tt class="descname">FancyModule</tt><big>(</big><em>tempdir=None</em>, <em>fancyClean=None</em>, <em>fancyConfig=None</em>, <em>fancyLog=None</em>, <em>logId='1'</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyModule"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyModule" title="Permalink to this definition">¶</a></dt>
-<dd><dl class="method">
-<dt id="fancypipe.FancyModule.afterMain">
-<tt class="descname">afterMain</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyModule.afterMain"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyModule.afterMain" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="method">
-<dt id="fancypipe.FancyModule.beforeMain">
-<tt class="descname">beforeMain</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyModule.beforeMain"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyModule.beforeMain" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="classmethod">
-<dt id="fancypipe.FancyModule.fromCommandLine">
-<em class="property">classmethod </em><tt class="descname">fromCommandLine</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyModule.fromCommandLine"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyModule.fromCommandLine" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="attribute">
-<dt id="fancypipe.FancyModule.inputs">
-<tt class="descname">inputs</tt><em class="property"> = {}</em><a class="headerlink" href="#fancypipe.FancyModule.inputs" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-</dd></dl>
-
-<dl class="class">
-<dt id="fancypipe.FancyNode">
-<em class="property">class </em><tt class="descclassname">fancypipe.</tt><tt class="descname">FancyNode</tt><big>(</big><em>tempdir=None</em>, <em>fancyClean=None</em>, <em>fancyConfig=None</em>, <em>fancyLog=None</em>, <em>logId='1'</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyNode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyNode" title="Permalink to this definition">¶</a></dt>
-<dd><dl class="attribute">
-<dt id="fancypipe.FancyNode.description">
-<tt class="descname">description</tt><em class="property"> = None</em><a class="headerlink" href="#fancypipe.FancyNode.description" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="classmethod">
-<dt id="fancypipe.FancyNode.fromParent">
-<em class="property">classmethod </em><tt class="descname">fromParent</tt><big>(</big><em>parent</em>, <em>tempsubdir=None</em>, <em>title=None</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyNode.fromParent"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyNode.fromParent" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="method">
-<dt id="fancypipe.FancyNode.fulfillRequests">
-<tt class="descname">fulfillRequests</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyNode.fulfillRequests"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyNode.fulfillRequests" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="method">
-<dt id="fancypipe.FancyNode.getCommandLine">
-<tt class="descname">getCommandLine</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyNode.getCommandLine"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyNode.getCommandLine" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="method">
-<dt id="fancypipe.FancyNode.getInput">
-<tt class="descname">getInput</tt><big>(</big><em>key=None</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyNode.getInput"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyNode.getInput" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="method">
-<dt id="fancypipe.FancyNode.getName">
-<tt class="descname">getName</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyNode.getName"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyNode.getName" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="method">
-<dt id="fancypipe.FancyNode.getOutput">
-<tt class="descname">getOutput</tt><big>(</big><em>key=None</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyNode.getOutput"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyNode.getOutput" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="method">
-<dt id="fancypipe.FancyNode.initRequests">
-<tt class="descname">initRequests</tt><big>(</big><em>anyArgs</em>, <em>allSources</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyNode.initRequests"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyNode.initRequests" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="attribute">
-<dt id="fancypipe.FancyNode.inputs">
-<tt class="descname">inputs</tt><em class="property"> = {'loglevel': {'default': 1, 'type': &lt;type 'int'&gt;, 'help': 'Log level, 1 for entries, 2 for standard output, 4 for data, 8 for extra.'}, 'nocleanup': {'action': 'store_true', 'default': False, 'help': 'Whether to cleanup intermediate results.'}, 'logid': {'default': '1', 'help': 'Hierarchical identifier of the log entry (e.g. &quot;3.4.7&quot;). Use logId=INIT to create a new empty log (error if it exists), and logId=RESET to reset (overwrite) an existing log.'}, 'configfile': {'default': None, 'help': 'Configuration file (XML or JSON), to read default parameters from.'}, 'logdir': {'default': None, 'help': 'Log directory, to store logfile (fancylog.js + fancylog.html) and store attachments.'}, 'tempdir': {'default': None, 'help': 'Temp directory, to store intermediate results.'}}</em><a class="headerlink" href="#fancypipe.FancyNode.inputs" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="method">
-<dt id="fancypipe.FancyNode.logOutput">
-<tt class="descname">logOutput</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyNode.logOutput"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyNode.logOutput" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="method">
-<dt id="fancypipe.FancyNode.main">
-<tt class="descname">main</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyNode.main"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyNode.main" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="attribute">
-<dt id="fancypipe.FancyNode.name">
-<tt class="descname">name</tt><em class="property"> = None</em><a class="headerlink" href="#fancypipe.FancyNode.name" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="method">
-<dt id="fancypipe.FancyNode.newChildLogId">
-<tt class="descname">newChildLogId</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyNode.newChildLogId"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyNode.newChildLogId" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="method">
-<dt id="fancypipe.FancyNode.outputFiles">
-<tt class="descname">outputFiles</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyNode.outputFiles"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyNode.outputFiles" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="method">
-<dt id="fancypipe.FancyNode.prepareInput">
-<tt class="descname">prepareInput</tt><big>(</big><em>args</em>, <em>kwargs</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyNode.prepareInput"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyNode.prepareInput" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="method">
-<dt id="fancypipe.FancyNode.propagateOutput">
-<tt class="descname">propagateOutput</tt><big>(</big><em>allSources</em>, <em>jobQueue</em>, <em>fancyMP</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyNode.propagateOutput"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyNode.propagateOutput" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="method">
-<dt id="fancypipe.FancyNode.requestOutput">
-<tt class="descname">requestOutput</tt><big>(</big><em>key</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyNode.requestOutput"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyNode.requestOutput" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="method">
-<dt id="fancypipe.FancyNode.resolveOutput">
-<tt class="descname">resolveOutput</tt><big>(</big><em>jobQueue</em>, <em>fancyMP=None</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyNode.resolveOutput"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyNode.resolveOutput" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="method">
-<dt id="fancypipe.FancyNode.run">
-<tt class="descname">run</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyNode.run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyNode.run" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="method">
-<dt id="fancypipe.FancyNode.runSources">
-<tt class="descname">runSources</tt><big>(</big><em>allSources</em>, <em>jobQueue</em>, <em>fancyMP</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyNode.runSources"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyNode.runSources" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="method">
-<dt id="fancypipe.FancyNode.setInput">
-<tt class="descname">setInput</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyNode.setInput"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyNode.setInput" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="method">
-<dt id="fancypipe.FancyNode.tempfile">
-<tt class="descname">tempfile</tt><big>(</big><em>f=None</em>, <em>ext=''</em>, <em>autoclean=None</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyNode.tempfile"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyNode.tempfile" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="attribute">
-<dt id="fancypipe.FancyNode.title">
-<tt class="descname">title</tt><em class="property"> = None</em><a class="headerlink" href="#fancypipe.FancyNode.title" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="method">
-<dt id="fancypipe.FancyNode.validateInputs">
-<tt class="descname">validateInputs</tt><big>(</big><em>args</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyNode.validateInputs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyNode.validateInputs" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-</dd></dl>
-
-<dl class="class">
-<dt id="fancypipe.FancyOrderedDict">
-<em class="property">class </em><tt class="descclassname">fancypipe.</tt><tt class="descname">FancyOrderedDict</tt><big>(</big><em>kwargs</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyOrderedDict"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyOrderedDict" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="attribute">
-<dt id="fancypipe.FancyOutput">
-<tt class="descclassname">fancypipe.</tt><tt class="descname">FancyOutput</tt><a class="headerlink" href="#fancypipe.FancyOutput" title="Permalink to this definition">¶</a></dt>
-<dd><p>alias of <a class="reference internal" href="#fancypipe.FancyArgs" title="fancypipe.FancyArgs"><tt class="xref py py-class docutils literal"><span class="pre">FancyArgs</span></tt></a></p>
-</dd></dl>
-
-<dl class="class">
-<dt id="fancypipe.FancyOutputFile">
-<em class="property">class </em><tt class="descclassname">fancypipe.</tt><tt class="descname">FancyOutputFile</tt><big>(</big><em>s</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyOutputFile"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyOutputFile" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="class">
-<dt id="fancypipe.FancyReport">
-<em class="property">class </em><tt class="descclassname">fancypipe.</tt><tt class="descname">FancyReport</tt><a class="reference internal" href="_modules/fancypipe.html#FancyReport"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyReport" title="Permalink to this definition">¶</a></dt>
-<dd><dl class="staticmethod">
-<dt id="fancypipe.FancyReport.error">
-<em class="property">static </em><tt class="descname">error</tt><big>(</big><em>s</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyReport.error"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyReport.error" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="staticmethod">
-<dt id="fancypipe.FancyReport.fail">
-<em class="property">static </em><tt class="descname">fail</tt><big>(</big><em>infile</em>, <em>code=1</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyReport.fail"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyReport.fail" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="staticmethod">
-<dt id="fancypipe.FancyReport.success">
-<em class="property">static </em><tt class="descname">success</tt><big>(</big><em>*out</em>, <em>**kwout</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyReport.success"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyReport.success" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="attribute">
-<dt id="fancypipe.FancyReport.tb">
-<tt class="descname">tb</tt><em class="property"> = &lt;module 'traceback' from '/usr/lib/python2.7/traceback.pyc'&gt;</em><a class="headerlink" href="#fancypipe.FancyReport.tb" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="staticmethod">
-<dt id="fancypipe.FancyReport.traceback">
-<em class="property">static </em><tt class="descname">traceback</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyReport.traceback"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyReport.traceback" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-</dd></dl>
-
-<dl class="class">
-<dt id="fancypipe.FancyWorker">
-<em class="property">class </em><tt class="descclassname">fancypipe.</tt><tt class="descname">FancyWorker</tt><big>(</big><em>jobQueue</em>, <em>resultQueue</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyWorker"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyWorker" title="Permalink to this definition">¶</a></dt>
-<dd><dl class="method">
-<dt id="fancypipe.FancyWorker.run">
-<tt class="descname">run</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/fancypipe.html#FancyWorker.run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.FancyWorker.run" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-</dd></dl>
-
-<dl class="function">
-<dt id="fancypipe.assertDict">
-<tt class="descclassname">fancypipe.</tt><tt class="descname">assertDict</tt><big>(</big><em>s</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#assertDict"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.assertDict" title="Permalink to this definition">¶</a></dt>
-<dd><p>Assert that the input is a dictionary.</p>
-</dd></dl>
-
-<dl class="function">
-<dt id="fancypipe.assertDir">
-<tt class="descclassname">fancypipe.</tt><tt class="descname">assertDir</tt><big>(</big><em>s</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#assertDir"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.assertDir" title="Permalink to this definition">¶</a></dt>
-<dd><p>Assert that the input is an existing directory.</p>
-</dd></dl>
-
-<dl class="function">
-<dt id="fancypipe.assertExec">
-<tt class="descclassname">fancypipe.</tt><tt class="descname">assertExec</tt><big>(</big><em>s</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#assertExec"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.assertExec" title="Permalink to this definition">¶</a></dt>
-<dd><p>Assert that the input can be executed and return the full path to the executable.</p>
-</dd></dl>
-
-<dl class="function">
-<dt id="fancypipe.assertFile">
-<tt class="descclassname">fancypipe.</tt><tt class="descname">assertFile</tt><big>(</big><em>s</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#assertFile"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.assertFile" title="Permalink to this definition">¶</a></dt>
-<dd><p>Assert that the input is an existing file.</p>
-</dd></dl>
-
-<dl class="function">
-<dt id="fancypipe.assertList">
-<tt class="descclassname">fancypipe.</tt><tt class="descname">assertList</tt><big>(</big><em>s</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#assertList"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.assertList" title="Permalink to this definition">¶</a></dt>
-<dd><p>Assert that the input is a list or tuple.</p>
-</dd></dl>
-
-<dl class="function">
-<dt id="fancypipe.flagOutfile">
-<tt class="descclassname">fancypipe.</tt><tt class="descname">flagOutfile</tt><big>(</big><em>v</em><big>)</big><a class="reference internal" href="_modules/fancypipe.html#flagOutfile"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fancypipe.flagOutfile" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
 </div>
 
 
@@ -520,7 +563,7 @@ with a pre-defined main method.</p>
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="index.html" title="FancyPipe"
+          <a href="parallel.html" title="Parallel processing"
              >previous</a> |</li>
         <li><a href="index.html">FancyPipe 1.0 documentation</a> &raquo;</li> 
       </ul>

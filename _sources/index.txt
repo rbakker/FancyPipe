@@ -3,16 +3,16 @@
 
 FancyPipe
 =========
-The FancyPipe Engine is a open source python package for running 
-cpu-intensive data processing pipelines. It covers those aspects
-that would otherwise distract you from your main job: the design of the 
-processing steps.
+FancyPipe is an open `source <https://github.com/rbakker/FancyPipe>`_ 
+python package for running cpu-intensive data processing pipelines. 
+It covers those aspects that would otherwise distract you from your 
+main job: the design of the processing steps.
 
 FancyPipe takes care of:
 
-* parallel execution of code
-* html-based, hierarchical log file
-* parameter management
+* parallel and distributed execution of code
+* html-based, hierarchical logging
+* pipeline parameter management
 * command line interface
 * temporary files and garbage collection
 * error handling
@@ -50,8 +50,8 @@ use:
 
 When module2 is run, FancyPipe will automatically detect that its inputs 
 contain output-requests to module1a and module1b, and it will run these 
-modules in parallel. This illustrates the basic idea, the `parallel 
-programming page` describes more complex cases.
+modules in parallel. This illustrates the basic idea, the 
+`parallel programming page <parallelprogramming.html>`_ describes more complex cases.
 
 
 HTML logging
@@ -115,6 +115,8 @@ Documentation tree
 .. toctree::
   :maxdepth: 2
    
+  parallelprogramming
+  parallelprocessing
   classesmethods
 
 Indices and tables
