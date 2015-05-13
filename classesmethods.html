@@ -25,7 +25,7 @@
     <script type="text/javascript" src="_static/doctools.js"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="top" title="FancyPipe 1.0 documentation" href="index.html" />
-    <link rel="prev" title="Parallel processing" href="parallel.html" /> 
+    <link rel="prev" title="Parallel processing" href="parallelprocessing.html" /> 
   </head>
   <body>
     <div class="related">
@@ -38,7 +38,7 @@
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="parallel.html" title="Parallel processing"
+          <a href="parallelprocessing.html" title="Parallel processing"
              accesskey="P">previous</a> |</li>
         <li><a href="index.html">FancyPipe 1.0 documentation</a> &raquo;</li> 
       </ul>
@@ -49,7 +49,7 @@
               <img class="logo" src="_static/fancypipelogo.jpg" alt="Logo"/>
             </a></p>
   <h4>Previous topic</h4>
-  <p class="topless"><a href="parallel.html"
+  <p class="topless"><a href="parallelprocessing.html"
                         title="previous chapter">Parallel processing</a></p>
   <h3>This Page</h3>
   <ul class="this-page-menu">
@@ -457,7 +457,7 @@
 
 <dl class="attribute">
 <dt id="fancypipe.FancyModule.inputs">
-<tt class="descname">inputs</tt><em class="property"> = {'workertype': {'default': 'P', 'type': &lt;function f at 0x7f4f52762e60&gt;, 'help': 'Either &quot;T&quot; or &quot;P&quot;: T uses multi-threading while P uses multi-processing. Use T when the pipeline mainly involves calls to external programs; use P when Python itself is used for number-crunching.'}, 'loglevel': {'default': 3, 'type': &lt;type 'int'&gt;, 'help': 'Log level, 1 for entries, 2 for standard output, 4 for data, 8 for extra. Default: 3.'}, 'configfile': {'default': None, 'help': 'Configuration file (XML or JSON), to read default parameters from. Default: None.'}, 'jobauth': {'default': 'abracadabra', 'help': 'Authorization key for submitting jobs to the job manager (default: abracadabra).'}, 'logdir': {'default': None, 'help': 'Log directory, to store logfile (fancylog.js + fancylog.html) and attachments. Default: tempdir.'}, 'taskid': {'default': '0', 'help': 'Hierarchical identifier of the task (e.g. &quot;3.4.7&quot;). Use taskid=INIT to create a new empty log (error if it exists), and taskid=RESET to reset (overwrite) an existing log.'}, 'numworkers': {'default': 'auto', 'type': &lt;function f at 0x7f4f52762ed8&gt;, 'help': 'Number of parallel workers. Default: number of CPUs.'}, 'tempdir': {'default': None, 'help': 'Temp directory, to store intermediate results. Default: system tempdir.'}, 'nocleanup': {'action': 'store_true', 'default': False, 'help': 'Whether to cleanup intermediate results. Default: Do cleanup'}, 'jobmanager': {'default': False, 'help': 'Address (ip-address:port) of job manager started with &quot;python fancymanager.py-auth=abracadabra&quot;'}}</em><a class="headerlink" href="#fancypipe.FancyModule.inputs" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">inputs</tt><em class="property"> = {'workertype': {'default': 'P', 'type': &lt;function f at 0x7f15a9378ed8&gt;, 'help': 'Either &quot;T&quot; or &quot;P&quot;: T uses multi-threading while P uses multi-processing. Use T when the pipeline mainly involves calls to external programs; use P when Python itself is used for number-crunching.'}, 'loglevel': {'default': 3, 'type': &lt;type 'int'&gt;, 'help': 'Log level, 1 for entries, 2 for standard output, 4 for data, 8 for extra. Default: 3.'}, 'configfile': {'default': None, 'help': 'Configuration file (XML or JSON), to read default parameters from. Default: None.'}, 'jobauth': {'default': 'abracadabra', 'help': 'Authorization key for submitting jobs to the job manager (default: abracadabra).'}, 'logdir': {'default': None, 'help': 'Log directory, to store logfile (fancylog.js + fancylog.html) and attachments. Default: tempdir.'}, 'taskid': {'default': '0', 'help': 'Hierarchical identifier of the task (e.g. &quot;3.4.7&quot;). Use taskid=INIT to create a new empty log (error if it exists), and taskid=RESET to reset (overwrite) an existing log.'}, 'numworkers': {'default': 'auto', 'type': &lt;function f at 0x7f15a9378f50&gt;, 'help': 'Number of parallel workers. Default: number of CPUs.'}, 'tempdir': {'default': None, 'help': 'Temp directory, to store intermediate results. Default: system tempdir.'}, 'nocleanup': {'action': 'store_true', 'default': False, 'help': 'Whether to cleanup intermediate results. Default: Do cleanup'}, 'jobmanager': {'default': False, 'help': 'Address (ip-address:port) of job manager started with &quot;python fancymanager.py-auth=abracadabra&quot;'}}</em><a class="headerlink" href="#fancypipe.FancyModule.inputs" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 </dd></dl>
@@ -563,7 +563,7 @@ with a pre-defined main method.</p>
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="parallel.html" title="Parallel processing"
+          <a href="parallelprocessing.html" title="Parallel processing"
              >previous</a> |</li>
         <li><a href="index.html">FancyPipe 1.0 documentation</a> &raquo;</li> 
       </ul>
