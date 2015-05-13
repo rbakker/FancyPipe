@@ -115,6 +115,7 @@ Documentation tree
 .. toctree::
   :maxdepth: 2
    
+  installation
   parallelprogramming
   parallelprocessing
   classesmethods
