@@ -106,6 +106,7 @@
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
   <span class="s">&#39;assertPassword&#39;</span><span class="p">,</span><span class="s">&#39;assertBool&#39;</span><span class="p">,</span><span class="s">&#39;assertFile&#39;</span><span class="p">,</span><span class="s">&#39;assertDir&#39;</span><span class="p">,</span><span class="s">&#39;assertList&#39;</span><span class="p">,</span><span class="s">&#39;assertDict&#39;</span><span class="p">,</span><span class="s">&#39;assertExec&#39;</span><span class="p">,</span><span class="s">&#39;assertToken&#39;</span><span class="p">,</span>
   <span class="s">&#39;assertMatch&#39;</span><span class="p">,</span><span class="s">&#39;assertInstance&#39;</span><span class="p">,</span><span class="s">&#39;assertType&#39;</span><span class="p">,</span>
+  <span class="s">&#39;odict&#39;</span><span class="p">,</span>
   <span class="s">&#39;FancyOutputFile&#39;</span><span class="p">,</span><span class="s">&#39;FancyPassword&#39;</span><span class="p">,</span><span class="s">&#39;FancyLink&#39;</span><span class="p">,</span><span class="s">&#39;FancyArgs&#39;</span><span class="p">,</span><span class="s">&#39;FancyOutput&#39;</span><span class="p">,</span><span class="s">&#39;FancyInput&#39;</span><span class="p">,</span><span class="s">&#39;FancyList&#39;</span><span class="p">,</span><span class="s">&#39;FancyDict&#39;</span><span class="p">,</span>
   <span class="s">&#39;Task&#39;</span><span class="p">,</span><span class="s">&#39;FancyTask&#39;</span><span class="p">,</span><span class="s">&#39;FancyModule&#39;</span><span class="p">,</span><span class="s">&#39;FancyExec&#39;</span><span class="p">,</span><span class="s">&#39;FancyNode&#39;</span><span class="p">,</span><span class="s">&#39;FancyLog&#39;</span>
 <span class="p">]</span>
@@ -115,7 +116,7 @@
 <span class="kn">import</span> <span class="nn">os.path</span> <span class="kn">as</span> <span class="nn">op</span>
 <span class="kn">import</span> <span class="nn">argparse</span><span class="o">,</span> <span class="nn">subprocess</span>
 <span class="kn">import</span> <span class="nn">tempfile</span><span class="o">,</span> <span class="nn">datetime</span><span class="o">,</span> <span class="nn">json</span>
-<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span> <span class="k">as</span> <span class="n">odict</span>
 <span class="kn">import</span> <span class="nn">re</span>
 <span class="kn">import</span> <span class="nn">threading</span><span class="o">,</span> <span class="nn">multiprocessing</span><span class="o">,</span> <span class="nn">multiprocessing.managers</span>
 <span class="k">try</span><span class="p">:</span>
@@ -470,7 +471,7 @@
   <span class="nd">@staticmethod</span>
   <span class="k">def</span> <span class="nf">etree_to_odict</span><span class="p">(</span><span class="n">t</span><span class="p">):</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="p">):</span>
-      <span class="n">od</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
+      <span class="n">od</span> <span class="o">=</span> <span class="n">odict</span><span class="p">()</span>
       <span class="k">for</span> <span class="n">ch</span> <span class="ow">in</span> <span class="n">t</span><span class="p">:</span>
         <span class="n">od</span><span class="p">[</span><span class="n">ch</span><span class="o">.</span><span class="n">tag</span><span class="p">]</span> <span class="o">=</span> <span class="n">FancyConfig</span><span class="o">.</span><span class="n">etree_to_odict</span><span class="p">(</span><span class="n">ch</span><span class="p">)</span>
       <span class="k">return</span> <span class="n">od</span>
@@ -486,11 +487,11 @@
       <span class="kn">from</span> <span class="nn">lxml</span> <span class="kn">import</span> <span class="n">etree</span>
       <span class="n">tree</span> <span class="o">=</span> <span class="n">etree</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">configFile</span><span class="p">)</span>
       <span class="n">root</span> <span class="o">=</span> <span class="n">tree</span><span class="o">.</span><span class="n">getroot</span><span class="p">()</span>
-      <span class="n">config</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
+      <span class="n">config</span> <span class="o">=</span> <span class="n">odict</span><span class="p">()</span>
       <span class="n">config</span><span class="p">[</span><span class="n">root</span><span class="o">.</span><span class="n">tag</span><span class="p">]</span> <span class="o">=</span> <span class="n">FancyConfig</span><span class="o">.</span><span class="n">etree_to_odict</span><span class="p">(</span><span class="n">root</span><span class="p">)</span>
       <span class="k">return</span> <span class="n">cls</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
     <span class="k">elif</span> <span class="n">ext</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s">&#39;.json&#39;</span><span class="p">:</span>
-      <span class="k">return</span> <span class="n">cls</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">configFile</span><span class="p">,</span> <span class="n">object_pairs_hook</span><span class="o">=</span><span class="n">OrderedDict</span><span class="p">))</span>
+      <span class="k">return</span> <span class="n">cls</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">configFile</span><span class="p">,</span> <span class="n">object_pairs_hook</span><span class="o">=</span><span class="n">odict</span><span class="p">))</span>
     <span class="k">else</span><span class="p">:</span>
       <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&#39;Configuration file &quot;{}&quot; has an unrecognized format.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">configFile</span><span class="p">))</span>
 
@@ -603,18 +604,8 @@
     <span class="k">return</span> <span class="n">FancyArgs</span><span class="o">.</span><span class="n">dictSources</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
 <span class="c">#endclass</span>
 
-
-<span class="c">## Special case of FancyArgs, consisting of only keyword arguments, with preserved order.</span></div></div>
-<span class="k">class</span> <span class="nc">FancyOrderedDict</span><span class="p">(</span><span class="n">OrderedDict</span><span class="p">,</span><span class="n">FancyDict</span><span class="p">):</span>
-  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">kwargs</span><span class="p">):</span>
-    <span class="n">OrderedDict</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">kwargs</span><span class="p">)</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="bp">self</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">args</span> <span class="o">=</span> <span class="p">[]</span>
-<span class="c">#endclass</span>
-
-
 <span class="c">## FancyInput and FancyOutput have no special meaning, but improve</span>
-<span class="c">## readability when used to represent the input and output of a task.</span>
+<span class="c">## readability when used to represent the input and output of a task.</span></div></div>
 <span class="n">FancyInput</span>  <span class="o">=</span> <span class="n">FancyArgs</span>
 <span class="n">FancyOutput</span> <span class="o">=</span> <span class="n">FancyArgs</span>
 
@@ -764,10 +755,11 @@
     <span class="bp">self</span><span class="o">.</span><span class="n">resolveAffected</span><span class="p">(</span><span class="n">affectedTasks</span><span class="p">,</span><span class="n">taskCache</span><span class="p">,</span><span class="n">jobQueue</span><span class="p">,</span><span class="n">fancyPool</span><span class="p">)</span>
     <span class="k">while</span> <span class="bp">self</span><span class="o">.</span><span class="n">runStatus</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">Task_Completed</span><span class="p">:</span>
       <span class="k">if</span> <span class="n">fancyPool</span><span class="p">:</span>
-        <span class="c"># parallel execution, using LocalPool</span>
+        <span class="c"># Parallel execution, using local or remote pool</span>
         <span class="k">if</span> <span class="n">fancyPool</span><span class="o">.</span><span class="n">jobCount</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
           <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&#39;Waiting for output but no jobs are running.&#39;</span><span class="p">)</span>
-        <span class="p">(</span><span class="n">srcId</span><span class="p">,</span><span class="n">myOutput</span><span class="p">)</span> <span class="o">=</span> <span class="n">fancyPool</span><span class="o">.</span><span class="n">resultQueue</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+        <span class="c"># Wait for result to appear in result queue.</span>
+        <span class="p">(</span><span class="n">srcId</span><span class="p">,</span><span class="n">myOutput</span><span class="p">)</span> <span class="o">=</span> <span class="n">fancyPool</span><span class="o">.</span><span class="n">getResult</span><span class="p">()</span>
         <span class="n">fancyPool</span><span class="o">.</span><span class="n">jobCount</span> <span class="o">-=</span> <span class="mi">1</span>
         <span class="k">if</span> <span class="n">srcId</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
           <span class="n">workerName</span><span class="p">,</span><span class="n">srcId</span> <span class="o">=</span> <span class="n">myOutput</span>
@@ -878,34 +870,34 @@
   <span class="nd">@classmethod</span>
   <span class="k">def</span> <span class="nf">_parseInputs</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span><span class="n">raw</span><span class="p">,</span><span class="n">cfg</span><span class="p">):</span>
     <span class="k">if</span> <span class="s">&#39;inputs&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">cls</span><span class="o">.</span><span class="n">__dict__</span><span class="p">:</span> <span class="k">return</span> <span class="p">{}</span>
-    <span class="c"># positional arguments are ignored</span>
     <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{}</span>
     <span class="c"># first loop: command line arguments</span>
-    <span class="n">remaining</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
-    <span class="k">for</span> <span class="n">key</span><span class="p">,</span><span class="n">inp</span> <span class="ow">in</span> <span class="n">cls</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-      <span class="c"># typecast</span>
-      <span class="n">tp</span> <span class="o">=</span> <span class="n">inp</span><span class="p">[</span><span class="s">&#39;type&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="s">&#39;type&#39;</span> <span class="ow">in</span> <span class="n">inp</span> <span class="k">else</span> <span class="nb">str</span>
-      <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">raw</span><span class="p">:</span>
-        <span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">tp</span><span class="p">(</span><span class="n">raw</span><span class="p">[</span><span class="n">key</span><span class="p">])</span>
-        <span class="n">remaining</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+    <span class="n">inputs</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">key</span><span class="p">,</span><span class="n">inp</span> <span class="ow">in</span> <span class="n">inputs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+      <span class="k">if</span> <span class="n">inp</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">raw</span><span class="p">:</span>
+          <span class="c"># typecast</span>
+          <span class="n">tp</span> <span class="o">=</span> <span class="n">inp</span><span class="p">[</span><span class="s">&#39;type&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="s">&#39;type&#39;</span> <span class="ow">in</span> <span class="n">inp</span> <span class="k">else</span> <span class="nb">str</span>
+          <span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">tp</span><span class="p">(</span><span class="n">raw</span><span class="p">[</span><span class="n">key</span><span class="p">])</span>
+          <span class="n">inputs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="bp">False</span>
     <span class="c"># second loop: configuration file arguments</span>
-    <span class="n">inputs</span> <span class="o">=</span> <span class="n">remaining</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
     <span class="k">for</span> <span class="n">key</span><span class="p">,</span><span class="n">inp</span> <span class="ow">in</span> <span class="n">inputs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-      <span class="c"># typecast</span>
-      <span class="n">tp</span> <span class="o">=</span> <span class="n">inp</span><span class="p">[</span><span class="s">&#39;type&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="s">&#39;type&#39;</span> <span class="ow">in</span> <span class="n">inp</span> <span class="k">else</span> <span class="nb">str</span>
-      <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">cfg</span><span class="p">:</span>
-        <span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">tp</span><span class="p">(</span><span class="n">cfg</span><span class="p">[</span><span class="n">key</span><span class="p">])</span>
-        <span class="n">remaining</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">inp</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">cfg</span><span class="p">:</span>
+          <span class="c"># typecast</span>
+          <span class="n">tp</span> <span class="o">=</span> <span class="n">inp</span><span class="p">[</span><span class="s">&#39;type&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="s">&#39;type&#39;</span> <span class="ow">in</span> <span class="n">inp</span> <span class="k">else</span> <span class="nb">str</span>
+          <span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">tp</span><span class="p">(</span><span class="n">cfg</span><span class="p">[</span><span class="n">key</span><span class="p">])</span>
+          <span class="n">inputs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="bp">False</span>
     <span class="c"># final loop: default arguments</span>
-    <span class="n">inputs</span> <span class="o">=</span> <span class="n">remaining</span>
     <span class="k">for</span> <span class="n">key</span><span class="p">,</span><span class="n">inp</span> <span class="ow">in</span> <span class="n">inputs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-      <span class="k">if</span> <span class="s">&#39;default&#39;</span> <span class="ow">in</span> <span class="n">inp</span><span class="p">:</span>
-        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">inp</span><span class="p">[</span><span class="s">&#39;default&#39;</span><span class="p">],</span><span class="s">&#39;__call__&#39;</span><span class="p">):</span>
-          <span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">inp</span><span class="p">[</span><span class="s">&#39;default&#39;</span><span class="p">](</span><span class="n">kwargs</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-          <span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">inp</span><span class="p">[</span><span class="s">&#39;default&#39;</span><span class="p">]</span>
-      <span class="c">#else:</span>
-      <span class="c">#  raise ValueError(&#39;No value supplied for input argument {} {} {}&#39;.format(key,raw,cfg))</span>
+      <span class="k">if</span> <span class="n">inp</span><span class="p">:</span>
+        <span class="k">if</span> <span class="s">&#39;default&#39;</span> <span class="ow">in</span> <span class="n">inp</span><span class="p">:</span>
+          <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">inp</span><span class="p">[</span><span class="s">&#39;default&#39;</span><span class="p">],</span><span class="s">&#39;__call__&#39;</span><span class="p">):</span>
+            <span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">inp</span><span class="p">[</span><span class="s">&#39;default&#39;</span><span class="p">](</span><span class="n">kwargs</span><span class="p">)</span>
+          <span class="k">else</span><span class="p">:</span>
+            <span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">inp</span><span class="p">[</span><span class="s">&#39;default&#39;</span><span class="p">]</span>
+        <span class="c">#else:</span>
+        <span class="c">#  raise ValueError(&#39;No value supplied for required input &quot;{}&quot; of module &quot;{}&quot;&#39;.format(key,cls))</span>
     <span class="k">return</span> <span class="n">kwargs</span>
   
   <span class="nd">@classmethod</span>
@@ -988,38 +980,38 @@
 <span class="c">## from the command line, and adds methods beforeMain() and afterMain().</span>
 <div class="viewcode-block" id="FancyModule"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyModule">[docs]</a><span class="k">class</span> <span class="nc">FancyModule</span><span class="p">(</span><span class="n">FancyTask</span><span class="p">):</span>
   <span class="n">description</span> <span class="o">=</span> <span class="bp">None</span>
-  <span class="n">inputs</span> <span class="o">=</span> <span class="p">{</span>
-    <span class="s">&#39;tempdir&#39;</span><span class="p">:{</span><span class="s">&#39;default&#39;</span><span class="p">:</span><span class="bp">None</span><span class="p">,</span>
-      <span class="s">&#39;help&#39;</span><span class="p">:</span><span class="s">&#39;Temp directory, to store intermediate results. Default: system tempdir.&#39;</span>
-    <span class="p">},</span>
-    <span class="s">&#39;logdir&#39;</span><span class="p">:{</span><span class="s">&#39;default&#39;</span><span class="p">:</span><span class="bp">None</span><span class="p">,</span>
-    <span class="s">&#39;help&#39;</span><span class="p">:</span><span class="s">&#39;Log directory, to store logfile (fancylog.js + fancylog.html) and attachments. Default: tempdir.&#39;</span>
-    <span class="p">},</span>
-    <span class="s">&#39;loglevel&#39;</span><span class="p">:{</span><span class="s">&#39;type&#39;</span><span class="p">:</span><span class="nb">int</span><span class="p">,</span> <span class="s">&#39;default&#39;</span><span class="p">:</span><span class="mi">3</span><span class="p">,</span>
-      <span class="s">&#39;help&#39;</span><span class="p">:</span><span class="s">&#39;Log level, 1 for entries, 2 for standard output, 4 for data, 8 for extra. Default: 3.&#39;</span>
-    <span class="p">},</span>
-    <span class="s">&#39;taskid&#39;</span><span class="p">:{</span><span class="s">&#39;default&#39;</span><span class="p">:</span><span class="s">&#39;0&#39;</span><span class="p">,</span>
-      <span class="s">&#39;help&#39;</span><span class="p">:</span><span class="s">&#39;Hierarchical identifier of the task (e.g. &quot;3.4.7&quot;). Use taskid=INIT to create a new empty log (error if it exists), and taskid=RESET to reset (overwrite) an existing log.&#39;</span>
-    <span class="p">},</span>
-    <span class="s">&#39;configfile&#39;</span><span class="p">:{</span><span class="s">&#39;default&#39;</span><span class="p">:</span><span class="bp">None</span><span class="p">,</span>
-      <span class="s">&#39;help&#39;</span><span class="p">:</span><span class="s">&#39;Configuration file (XML or JSON), to read default parameters from. Default: None.&#39;</span>
-    <span class="p">},</span>
-    <span class="s">&#39;nocleanup&#39;</span><span class="p">:{</span><span class="s">&#39;action&#39;</span><span class="p">:</span><span class="s">&#39;store_true&#39;</span><span class="p">,</span> <span class="s">&#39;default&#39;</span><span class="p">:</span><span class="bp">False</span><span class="p">,</span>
-      <span class="s">&#39;help&#39;</span><span class="p">:</span><span class="s">&#39;Whether to cleanup intermediate results. Default: Do cleanup&#39;</span>
-    <span class="p">},</span>
-    <span class="s">&#39;workertype&#39;</span><span class="p">:{</span><span class="s">&#39;type&#39;</span><span class="p">:</span><span class="n">assertMatch</span><span class="p">(</span><span class="s">&#39;([pPtT])&#39;</span><span class="p">),</span><span class="s">&#39;default&#39;</span><span class="p">:(</span><span class="s">&#39;P&#39;</span><span class="p">),</span>
-      <span class="s">&#39;help&#39;</span><span class="p">:</span><span class="s">&#39;Either &quot;T&quot; or &quot;P&quot;: T uses multi-threading while P uses multi-processing. Use T when the pipeline mainly involves calls to external programs; use P when Python itself is used for number-crunching.&#39;</span>
-    <span class="p">},</span>
-    <span class="s">&#39;numworkers&#39;</span><span class="p">:{</span><span class="s">&#39;type&#39;</span><span class="p">:</span><span class="n">assertType</span><span class="p">(</span><span class="nb">int</span><span class="p">),</span><span class="s">&#39;default&#39;</span><span class="p">:</span><span class="s">&#39;auto&#39;</span><span class="p">,</span>
-      <span class="s">&#39;help&#39;</span><span class="p">:</span><span class="s">&#39;Number of parallel workers. Default: number of CPUs.&#39;</span>
-    <span class="p">},</span>
-    <span class="s">&#39;jobmanager&#39;</span><span class="p">:{</span><span class="s">&#39;default&#39;</span><span class="p">:</span><span class="bp">False</span><span class="p">,</span>
-      <span class="s">&#39;help&#39;</span><span class="p">:</span><span class="s">&#39;Address (ip-address:port) of job manager started with &quot;python fancymanager.py-auth=abracadabra&quot;&#39;</span>
-    <span class="p">},</span>
-    <span class="s">&#39;jobauth&#39;</span><span class="p">:{</span><span class="s">&#39;default&#39;</span><span class="p">:</span><span class="s">&#39;abracadabra&#39;</span><span class="p">,</span>
-      <span class="s">&#39;help&#39;</span><span class="p">:</span><span class="s">&#39;Authorization key for submitting jobs to the job manager (default: abracadabra).&#39;</span>
-    <span class="p">}</span>
-  <span class="p">}</span>
+  <span class="n">inputs</span> <span class="o">=</span> <span class="n">odict</span><span class="p">([</span>
+    <span class="p">(</span><span class="s">&#39;tempdir&#39;</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span> <span class="n">default</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+      <span class="n">help</span><span class="o">=</span><span class="s">&#39;Temp directory, to store intermediate results. Default: system tempdir.&#39;</span>
+    <span class="p">)),</span>
+    <span class="p">(</span><span class="s">&#39;logdir&#39;</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span> <span class="n">default</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+      <span class="n">help</span><span class="o">=</span><span class="s">&#39;Log directory, to store logfile (fancylog.js + fancylog.html) and attachments. Default: tempdir.&#39;</span>
+    <span class="p">)),</span>
+    <span class="p">(</span><span class="s">&#39;loglevel&#39;</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+      <span class="n">help</span><span class="o">=</span><span class="s">&#39;Log level, 1 for entries, 2 for standard output, 4 for data, 8 for extra. Default: 3.&#39;</span>
+    <span class="p">)),</span>
+    <span class="p">(</span><span class="s">&#39;taskid&#39;</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span> <span class="n">default</span><span class="o">=</span><span class="s">&#39;0&#39;</span><span class="p">,</span>
+      <span class="n">help</span><span class="o">=</span><span class="s">&#39;Hierarchical identifier of the task (e.g. &quot;3.4.7&quot;). Use taskid=INIT to create a new empty log (error if it exists), and taskid=RESET to reset (overwrite) an existing log.&#39;</span>
+    <span class="p">)),</span>
+    <span class="p">(</span><span class="s">&#39;configfile&#39;</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span> <span class="n">default</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+      <span class="n">help</span><span class="o">=</span><span class="s">&#39;Configuration file (XML or JSON), to read default parameters from. Default: None.&#39;</span>
+    <span class="p">)),</span>
+    <span class="p">(</span><span class="s">&#39;nocleanup&#39;</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span> <span class="n">action</span><span class="o">=</span><span class="s">&#39;store_true&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+      <span class="n">help</span><span class="o">=</span><span class="s">&#39;Whether to cleanup intermediate results. Default: Do cleanup&#39;</span>
+    <span class="p">)),</span>
+    <span class="p">(</span><span class="s">&#39;workertype&#39;</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span> <span class="nb">type</span><span class="o">=</span><span class="n">assertMatch</span><span class="p">(</span><span class="s">&#39;([pPtT])&#39;</span><span class="p">),</span> <span class="n">default</span><span class="o">=</span><span class="p">(</span><span class="s">&#39;P&#39;</span><span class="p">),</span>
+      <span class="n">help</span><span class="o">=</span><span class="s">&#39;Either &quot;T&quot; or &quot;P&quot;: T uses multi-threading while P uses multi-processing. Use T when the pipeline mainly involves calls to external programs; use P when Python itself is used for number-crunching.&#39;</span>
+    <span class="p">)),</span>
+    <span class="p">(</span><span class="s">&#39;numworkers&#39;</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span> <span class="nb">type</span><span class="o">=</span><span class="n">assertType</span><span class="p">(</span><span class="nb">int</span><span class="p">),</span> <span class="n">default</span><span class="o">=</span><span class="s">&#39;auto&#39;</span><span class="p">,</span>
+      <span class="n">help</span><span class="o">=</span><span class="s">&#39;Number of parallel workers. Default: number of CPUs.&#39;</span>
+    <span class="p">)),</span>
+    <span class="p">(</span><span class="s">&#39;jobmanager&#39;</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span> <span class="n">default</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+      <span class="n">help</span><span class="o">=</span><span class="s">&#39;Address (ip-address:port) of job manager started with &quot;python fancymanager.py-auth=abracadabra&quot;&#39;</span>
+    <span class="p">)),</span>
+    <span class="p">(</span><span class="s">&#39;jobauth&#39;</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span> <span class="n">default</span><span class="o">=</span><span class="s">&#39;abracadabra&#39;</span><span class="p">,</span>
+      <span class="n">help</span><span class="o">=</span><span class="s">&#39;Authorization key for submitting jobs to the job manager. Default: abracadabra.&#39;</span>
+    <span class="p">))</span>
+  <span class="p">])</span>
   
   <span class="nd">@classmethod</span>
 <div class="viewcode-block" id="FancyModule.fromCommandLine"><a class="viewcode-back" href="../classesmethods.html#fancypipe.FancyModule.fromCommandLine">[docs]</a>  <span class="k">def</span> <span class="nf">fromCommandLine</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
@@ -1074,10 +1066,13 @@
 
   <span class="nd">@classmethod</span>
   <span class="k">def</span> <span class="nf">_extendParser</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span><span class="n">p</span><span class="p">,</span><span class="n">inputs</span><span class="p">):</span>
-    <span class="k">for</span> <span class="n">key</span><span class="p">,</span><span class="n">inp</span> <span class="ow">in</span> <span class="n">inputs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-      <span class="n">inp</span> <span class="o">=</span> <span class="n">inp</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
-      <span class="n">dest</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;-{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">key</span><span class="p">),</span><span class="s">&#39;--{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">key</span><span class="p">)]</span>
-      <span class="n">inp</span><span class="p">[</span><span class="s">&#39;required&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">False</span> <span class="k">if</span> <span class="s">&#39;default&#39;</span> <span class="ow">in</span> <span class="n">inp</span> <span class="k">else</span> <span class="bp">True</span>
+    <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">inputs</span><span class="p">:</span>
+      <span class="n">inp</span> <span class="o">=</span> <span class="n">inputs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+      <span class="n">short</span> <span class="o">=</span> <span class="n">inp</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s">&#39;short&#39;</span><span class="p">)</span> <span class="k">if</span> <span class="s">&#39;short&#39;</span> <span class="ow">in</span> <span class="n">inp</span> <span class="k">else</span> <span class="n">key</span>
+      <span class="n">positional</span> <span class="o">=</span> <span class="n">inp</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s">&#39;positional&#39;</span><span class="p">)</span> <span class="k">if</span> <span class="s">&#39;positional&#39;</span> <span class="ow">in</span> <span class="n">inp</span> <span class="k">else</span> <span class="bp">False</span>
+      <span class="n">dest</span> <span class="o">=</span> <span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="k">if</span> <span class="n">positional</span> <span class="k">else</span> <span class="p">[</span><span class="s">&#39;-{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">short</span><span class="p">),</span><span class="s">&#39;--{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">key</span><span class="p">)]</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="n">positional</span><span class="p">:</span> 
+        <span class="n">inp</span><span class="p">[</span><span class="s">&#39;required&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">False</span> <span class="k">if</span> <span class="s">&#39;default&#39;</span> <span class="ow">in</span> <span class="n">inp</span> <span class="k">else</span> <span class="bp">True</span>
       <span class="c"># ignore argument default, defer to parseInputs</span>
       <span class="k">if</span> <span class="s">&#39;default&#39;</span> <span class="ow">in</span> <span class="n">inp</span><span class="p">:</span> <span class="k">del</span> <span class="n">inp</span><span class="p">[</span><span class="s">&#39;default&#39;</span><span class="p">]</span>
       <span class="c"># overwrite argument type, defer to parseInputs</span>
@@ -1141,22 +1136,25 @@
     <span class="bp">self</span><span class="o">.</span><span class="n">jobQueue</span> <span class="o">=</span> <span class="n">jobQueue</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">resultQueue</span> <span class="o">=</span> <span class="n">resultQueue</span>
 
+  <span class="k">def</span> <span class="nf">getTask</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">jobQueue</span><span class="o">.</span><span class="n">get</span><span class="p">(),</span><span class="bp">self</span><span class="o">.</span><span class="n">resultQueue</span><span class="p">)</span>
+
+  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">putResult</span><span class="p">(</span><span class="n">result</span><span class="p">,</span><span class="n">resultQueue</span><span class="p">):</span>
+    <span class="n">resultQueue</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+
   <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
     <span class="n">task</span> <span class="o">=</span> <span class="bp">False</span>
     <span class="n">resultQueue</span> <span class="o">=</span> <span class="bp">False</span>
     <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
       <span class="k">try</span><span class="p">:</span>
-        <span class="n">task</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">jobQueue</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+        <span class="p">(</span><span class="n">task</span><span class="p">,</span><span class="n">resultQueue</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getTask</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">task</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
           <span class="c"># Poison pill means shutdown</span>
           <span class="k">print</span><span class="p">(</span><span class="s">&#39;Exiting worker {}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
           <span class="k">break</span>
-        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="s">&#39;resultQueue&#39;</span><span class="p">):</span>
-          <span class="n">resultQueue</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">resultQueue</span>
-        <span class="k">else</span><span class="p">:</span>
-          <span class="p">(</span><span class="n">task</span><span class="p">,</span><span class="n">runId</span><span class="p">)</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
-          <span class="n">resultQueue</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">getResultQueue</span><span class="p">(</span><span class="n">runId</span><span class="p">)</span>
-        <span class="n">resultQueue</span><span class="o">.</span><span class="n">put</span><span class="p">((</span><span class="nb">str</span><span class="p">(</span><span class="n">task</span><span class="p">),</span><span class="n">task</span><span class="o">.</span><span class="n">_run</span><span class="p">()))</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">task</span><span class="p">),</span><span class="n">task</span><span class="o">.</span><span class="n">_run</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">putResult</span><span class="p">(</span><span class="n">result</span><span class="p">,</span><span class="n">resultQueue</span><span class="p">)</span>
         <span class="n">task</span> <span class="o">=</span> <span class="bp">False</span>
       <span class="k">except</span><span class="p">:</span>
         <span class="n">msg</span> <span class="o">=</span> <span class="n">FancyReport</span><span class="o">.</span><span class="n">traceback</span><span class="p">()</span>
@@ -1164,22 +1162,45 @@
           <span class="n">title</span> <span class="o">=</span> <span class="s">&#39;Fatal error in worker {} while running task {}.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span><span class="n">task</span><span class="p">)</span>
           <span class="n">task</span><span class="o">.</span><span class="n">fancyLog</span><span class="o">.</span><span class="n">attachResult</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">taskId</span><span class="p">,</span><span class="n">title</span><span class="p">,</span><span class="n">msg</span><span class="p">,{},</span> <span class="n">tp</span><span class="o">=</span><span class="s">&#39;error&#39;</span><span class="p">)</span>
           <span class="k">if</span> <span class="n">resultQueue</span><span class="p">:</span>
-            <span class="n">resultQueue</span><span class="o">.</span><span class="n">put</span><span class="p">((</span><span class="bp">None</span><span class="p">,(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span><span class="nb">str</span><span class="p">(</span><span class="n">task</span><span class="p">))))</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="p">(</span><span class="bp">None</span><span class="p">,(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span><span class="nb">str</span><span class="p">(</span><span class="n">task</span><span class="p">)))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">putResult</span><span class="p">(</span><span class="n">result</span><span class="p">,</span><span class="n">resultQueue</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
           <span class="n">title</span> <span class="o">=</span> <span class="s">&#39;Fatal error in worker {}:</span><span class="se">\n</span><span class="s">{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span><span class="n">msg</span><span class="p">)</span>
         <span class="n">FancyReport</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span><span class="n">title</span><span class="p">)</span>
 <span class="c">#endclass</span>
 
+<span class="k">class</span> <span class="nc">RemoteWorker</span><span class="p">(</span><span class="n">Worker</span><span class="p">,</span><span class="n">multiprocessing</span><span class="o">.</span><span class="n">Process</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">managerAddr</span><span class="p">,</span><span class="n">managerAuth</span><span class="p">):</span>
+    <span class="n">multiprocessing</span><span class="o">.</span><span class="n">Process</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+    <span class="kn">from</span> <span class="nn">multiprocessing.managers</span> <span class="kn">import</span> <span class="n">BaseManager</span>
+    <span class="k">class</span> <span class="nc">ManagerProxy</span><span class="p">(</span><span class="n">BaseManager</span><span class="p">):</span> <span class="k">pass</span>
+    <span class="n">ManagerProxy</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s">&#39;getJobQueue&#39;</span><span class="p">)</span>
+    <span class="n">ManagerProxy</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s">&#39;getResultQueue&#39;</span><span class="p">)</span>
+    <span class="k">print</span><span class="p">(</span><span class="s">&#39;Connecting to manager {}:{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">managerAddr</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="n">managerAddr</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">manager</span> <span class="o">=</span> <span class="n">ManagerProxy</span><span class="p">(</span><span class="n">address</span><span class="o">=</span><span class="n">managerAddr</span><span class="p">,</span><span class="n">authkey</span><span class="o">=</span><span class="n">managerAuth</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">connect</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">jobQueue</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">getJobQueue</span><span class="p">()</span>
+
+  <span class="k">def</span> <span class="nf">getTask</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="p">(</span><span class="n">task</span><span class="p">,</span><span class="n">runId</span><span class="p">)</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">jobQueue</span><span class="o">.</span><span class="n">get</span><span class="p">())</span>
+    <span class="n">resultQueue</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">getResultQueue</span><span class="p">(</span><span class="n">runId</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">task</span><span class="p">,</span><span class="n">resultQueue</span><span class="p">)</span>
+
+  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">putResult</span><span class="p">(</span><span class="n">result</span><span class="p">,</span><span class="n">resultQueue</span><span class="p">):</span>
+    <span class="n">resultQueue</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">pickle</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">result</span><span class="p">))</span>
+<span class="c">#endclass</span>
+
 <span class="k">class</span> <span class="nc">WorkerThread</span><span class="p">(</span><span class="n">Worker</span><span class="p">,</span><span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">):</span>
   <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">jobQueue</span><span class="p">,</span> <span class="n">resultQueue</span><span class="p">):</span>
     <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
-    <span class="n">FancyWorker</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">jobQueue</span><span class="p">,</span><span class="n">resultQueue</span><span class="p">)</span>
+    <span class="n">Worker</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">jobQueue</span><span class="p">,</span><span class="n">resultQueue</span><span class="p">)</span>
 <span class="c">#endclass</span>
 
 <span class="k">class</span> <span class="nc">WorkerProcess</span><span class="p">(</span><span class="n">Worker</span><span class="p">,</span><span class="n">multiprocessing</span><span class="o">.</span><span class="n">Process</span><span class="p">):</span>
   <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">jobQueue</span><span class="p">,</span> <span class="n">resultQueue</span><span class="p">):</span>
     <span class="n">multiprocessing</span><span class="o">.</span><span class="n">Process</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
-    <span class="n">FancyWorker</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">jobQueue</span><span class="p">,</span><span class="n">resultQueue</span><span class="p">)</span>
+    <span class="n">Worker</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">jobQueue</span><span class="p">,</span><span class="n">resultQueue</span><span class="p">)</span>
 <span class="c">#endclass</span>
 
 <span class="c">## LocalPool maintains a pool of workers, either implemented as </span>
@@ -1204,20 +1225,10 @@
         <span class="n">worker</span> <span class="o">=</span> <span class="n">WorkerProcess</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">jobQueue</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">resultQueue</span><span class="p">)</span>
       <span class="n">worker</span><span class="o">.</span><span class="n">daemon</span> <span class="o">=</span> <span class="bp">True</span>
       <span class="n">worker</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+      
+  <span class="k">def</span> <span class="nf">getResult</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">resultQueue</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
 <span class="c">#endclasss</span>
-
-<span class="k">class</span> <span class="nc">RemoteWorker</span><span class="p">(</span><span class="n">Worker</span><span class="p">,</span><span class="n">multiprocessing</span><span class="o">.</span><span class="n">Process</span><span class="p">):</span>
-  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">managerAddr</span><span class="p">,</span><span class="n">managerAuth</span><span class="p">):</span>
-    <span class="n">multiprocessing</span><span class="o">.</span><span class="n">Process</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
-    <span class="kn">from</span> <span class="nn">multiprocessing.managers</span> <span class="kn">import</span> <span class="n">BaseManager</span>
-    <span class="k">class</span> <span class="nc">ManagerProxy</span><span class="p">(</span><span class="n">BaseManager</span><span class="p">):</span> <span class="k">pass</span>
-    <span class="n">ManagerProxy</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s">&#39;getJobQueue&#39;</span><span class="p">)</span>
-    <span class="n">ManagerProxy</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s">&#39;getResultQueue&#39;</span><span class="p">)</span>
-    <span class="k">print</span><span class="p">(</span><span class="s">&#39;Connecting to manager {}:{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">managerAddr</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="n">managerAddr</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">manager</span> <span class="o">=</span> <span class="n">ManagerProxy</span><span class="p">(</span><span class="n">address</span><span class="o">=</span><span class="n">managerAddr</span><span class="p">,</span><span class="n">authkey</span><span class="o">=</span><span class="n">managerAuth</span><span class="p">)</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">connect</span><span class="p">()</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">jobQueue</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">getJobQueue</span><span class="p">()</span>
-<span class="c">#endclass</span>
 
 <span class="c">## As an alternative to maintaining a local pool of workers, this class </span>
 <span class="c">## connects to a manager that distributes jobs to remote workers.</span>
@@ -1237,6 +1248,9 @@
     <span class="bp">self</span><span class="o">.</span><span class="n">jobCount</span> <span class="o">=</span> <span class="mi">0</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">resultCount</span> <span class="o">=</span> <span class="mi">0</span>
     
+  <span class="k">def</span> <span class="nf">getResult</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">pickle</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">resultQueue</span><span class="o">.</span><span class="n">get</span><span class="p">())</span>
+
   <span class="k">def</span> <span class="nf">__del__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">popResultQueue</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">runId</span><span class="p">)</span>
 <span class="c">#endclasss</span>
