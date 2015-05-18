@@ -36,6 +36,7 @@
 __all__ = [
   'assertPassword','assertBool','assertFile','assertDir','assertList','assertDict','assertExec','assertToken',
   'assertMatch','assertInstance','assertType',
+  'odict',
   'FancyOutputFile','FancyPassword','FancyLink','FancyArgs','FancyOutput','FancyInput','FancyList','FancyDict',
   'Task','FancyTask','FancyModule','FancyExec','FancyNode','FancyLog'
 ]
@@ -45,7 +46,7 @@ import os,sys
 import os.path as op
 import argparse, subprocess
 import tempfile, datetime, json
-from collections import OrderedDict
+from collections import OrderedDict as odict
 import re
 import threading, multiprocessing, multiprocessing.managers
 try:
@@ -400,7 +401,7 @@ class FancyConfig:
   @staticmethod
   def etree_to_odict(t):
     if len(t):
-      od = OrderedDict()
+      od = odict()
       for ch in t:
         od[ch.tag] = FancyConfig.etree_to_odict(ch)
       return od
@@ -416,11 +417,11 @@ class FancyConfig:
       from lxml import etree
       tree = etree.parse(configFile)
       root = tree.getroot()
-      config = OrderedDict()
+      config = odict()
       config[root.tag] = FancyConfig.etree_to_odict(root)
       return cls(config)
     elif ext.lower() == '.json':
-      return cls(json.load(configFile, object_pairs_hook=OrderedDict))
+      return cls(json.load(configFile, object_pairs_hook=odict))
     else:
       raise RuntimeError('Configuration file "{}" has an unrecognized format.'.format(configFile))
 
@@ -532,16 +533,6 @@ class FancyDict(dict,FancyArgs):
   def sources(self):
     return FancyArgs.dictSources(self)
 #endclass
-
-
-## Special case of FancyArgs, consisting of only keyword arguments, with preserved order.
-class FancyOrderedDict(OrderedDict,FancyDict):
-  def __init__(self,kwargs):
-    OrderedDict.__init__(self,kwargs)
-    self.kwargs = self
-    self.args = []
-#endclass
-
 
 ## FancyInput and FancyOutput have no special meaning, but improve
 ## readability when used to represent the input and output of a task.
@@ -694,10 +685,11 @@ class Task():
     self.resolveAffected(affectedTasks,taskCache,jobQueue,fancyPool)
     while self.runStatus is not Task_Completed:
       if fancyPool:
-        # parallel execution, using LocalPool
+        # Parallel execution, using local or remote pool
         if fancyPool.jobCount == 0:
           raise RuntimeError('Waiting for output but no jobs are running.')
-        (srcId,myOutput) = fancyPool.resultQueue.get()
+        # Wait for result to appear in result queue.
+        (srcId,myOutput) = fancyPool.getResult()
         fancyPool.jobCount -= 1
         if srcId is None:
           workerName,srcId = myOutput
@@ -808,34 +800,34 @@ class FancyTask(Task):
   @classmethod
   def _parseInputs(cls,raw,cfg):
     if 'inputs' not in cls.__dict__: return {}
-    # positional arguments are ignored
     kwargs = {}
     # first loop: command line arguments
-    remaining = cls.inputs.copy()
-    for key,inp in cls.inputs.items():
-      # typecast
-      tp = inp['type'] if 'type' in inp else str
-      if key in raw:
-        kwargs[key] = tp(raw[key])
-        remaining.pop(key)
+    inputs = cls.inputs.copy()
+    for key,inp in inputs.items():
+      if inp:
+        if key in raw:
+          # typecast
+          tp = inp['type'] if 'type' in inp else str
+          kwargs[key] = tp(raw[key])
+          inputs[key] = False
     # second loop: configuration file arguments
-    inputs = remaining.copy()
     for key,inp in inputs.items():
-      # typecast
-      tp = inp['type'] if 'type' in inp else str
-      if key in cfg:
-        kwargs[key] = tp(cfg[key])
-        remaining.pop(key)
+      if inp:
+        if key in cfg:
+          # typecast
+          tp = inp['type'] if 'type' in inp else str
+          kwargs[key] = tp(cfg[key])
+          inputs[key] = False
     # final loop: default arguments
-    inputs = remaining
     for key,inp in inputs.items():
-      if 'default' in inp:
-        if hasattr(inp['default'],'__call__'):
-          kwargs[key] = inp['default'](kwargs)
-        else:
-          kwargs[key] = inp['default']
-      #else:
-      #  raise ValueError('No value supplied for input argument {} {} {}'.format(key,raw,cfg))
+      if inp:
+        if 'default' in inp:
+          if hasattr(inp['default'],'__call__'):
+            kwargs[key] = inp['default'](kwargs)
+          else:
+            kwargs[key] = inp['default']
+        #else:
+        #  raise ValueError('No value supplied for required input "{}" of module "{}"'.format(key,cls))
     return kwargs
   
   @classmethod
@@ -918,38 +910,38 @@ FancyNode = FancyTask
 ## from the command line, and adds methods beforeMain() and afterMain().
 class FancyModule(FancyTask):
   description = None
-  inputs = {
-    'tempdir':{'default':None,
-      'help':'Temp directory, to store intermediate results. Default: system tempdir.'
-    },
-    'logdir':{'default':None,
-    'help':'Log directory, to store logfile (fancylog.js + fancylog.html) and attachments. Default: tempdir.'
-    },
-    'loglevel':{'type':int, 'default':3,
-      'help':'Log level, 1 for entries, 2 for standard output, 4 for data, 8 for extra. Default: 3.'
-    },
-    'taskid':{'default':'0',
-      'help':'Hierarchical identifier of the task (e.g. "3.4.7"). Use taskid=INIT to create a new empty log (error if it exists), and taskid=RESET to reset (overwrite) an existing log.'
-    },
-    'configfile':{'default':None,
-      'help':'Configuration file (XML or JSON), to read default parameters from. Default: None.'
-    },
-    'nocleanup':{'action':'store_true', 'default':False,
-      'help':'Whether to cleanup intermediate results. Default: Do cleanup'
-    },
-    'workertype':{'type':assertMatch('([pPtT])'),'default':('P'),
-      'help':'Either "T" or "P": T uses multi-threading while P uses multi-processing. Use T when the pipeline mainly involves calls to external programs; use P when Python itself is used for number-crunching.'
-    },
-    'numworkers':{'type':assertType(int),'default':'auto',
-      'help':'Number of parallel workers. Default: number of CPUs.'
-    },
-    'jobmanager':{'default':False,
-      'help':'Address (ip-address:port) of job manager started with "python fancymanager.py-auth=abracadabra"'
-    },
-    'jobauth':{'default':'abracadabra',
-      'help':'Authorization key for submitting jobs to the job manager (default: abracadabra).'
-    }
-  }
+  inputs = odict([
+    ('tempdir', dict( default=None,
+      help='Temp directory, to store intermediate results. Default: system tempdir.'
+    )),
+    ('logdir', dict( default=None,
+      help='Log directory, to store logfile (fancylog.js + fancylog.html) and attachments. Default: tempdir.'
+    )),
+    ('loglevel', dict( type=int, default=3,
+      help='Log level, 1 for entries, 2 for standard output, 4 for data, 8 for extra. Default: 3.'
+    )),
+    ('taskid', dict( default='0',
+      help='Hierarchical identifier of the task (e.g. "3.4.7"). Use taskid=INIT to create a new empty log (error if it exists), and taskid=RESET to reset (overwrite) an existing log.'
+    )),
+    ('configfile', dict( default=None,
+      help='Configuration file (XML or JSON), to read default parameters from. Default: None.'
+    )),
+    ('nocleanup', dict( action='store_true', default=False,
+      help='Whether to cleanup intermediate results. Default: Do cleanup'
+    )),
+    ('workertype', dict( type=assertMatch('([pPtT])'), default=('P'),
+      help='Either "T" or "P": T uses multi-threading while P uses multi-processing. Use T when the pipeline mainly involves calls to external programs; use P when Python itself is used for number-crunching.'
+    )),
+    ('numworkers', dict( type=assertType(int), default='auto',
+      help='Number of parallel workers. Default: number of CPUs.'
+    )),
+    ('jobmanager', dict( default=False,
+      help='Address (ip-address:port) of job manager started with "python fancymanager.py-auth=abracadabra"'
+    )),
+    ('jobauth', dict( default='abracadabra',
+      help='Authorization key for submitting jobs to the job manager. Default: abracadabra.'
+    ))
+  ])
   
   @classmethod
   def fromCommandLine(cls):
@@ -1004,10 +996,13 @@ class FancyModule(FancyTask):
 
   @classmethod
   def _extendParser(cls,p,inputs):
-    for key,inp in inputs.items():
-      inp = inp.copy()
-      dest = ['-{}'.format(key),'--{}'.format(key)]
-      inp['required'] = False if 'default' in inp else True
+    for key in inputs:
+      inp = inputs[key].copy()
+      short = inp.pop('short') if 'short' in inp else key
+      positional = inp.pop('positional') if 'positional' in inp else False
+      dest = [key] if positional else ['-{}'.format(short),'--{}'.format(key)]
+      if not positional: 
+        inp['required'] = False if 'default' in inp else True
       # ignore argument default, defer to parseInputs
       if 'default' in inp: del inp['default']
       # overwrite argument type, defer to parseInputs
@@ -1071,22 +1066,25 @@ class Worker():
     self.jobQueue = jobQueue
     self.resultQueue = resultQueue
 
+  def getTask(self):
+    return (self.jobQueue.get(),self.resultQueue)
+
+  @staticmethod
+  def putResult(result,resultQueue):
+    resultQueue.put(result)
+
   def run(self):
     task = False
     resultQueue = False
     while True:
       try:
-        task = self.jobQueue.get()
+        (task,resultQueue) = self.getTask()
         if task is None:
           # Poison pill means shutdown
           print('Exiting worker {}'.format(self.name))
           break
-        if hasattr(self,'resultQueue'):
-          resultQueue = self.resultQueue
-        else:
-          (task,runId) = pickle.loads(task)
-          resultQueue = self.manager.getResultQueue(runId)
-        resultQueue.put((str(task),task._run()))
+        result = (str(task),task._run())
+        self.putResult(result,resultQueue)
         task = False
       except:
         msg = FancyReport.traceback()
@@ -1094,22 +1092,45 @@ class Worker():
           title = 'Fatal error in worker {} while running task {}.'.format(self.name,task)
           task.fancyLog.attachResult(task.taskId,title,msg,{}, tp='error')
           if resultQueue:
-            resultQueue.put((None,(self.name,str(task))))
+            result = (None,(self.name,str(task)))
+            self.putResult(result,resultQueue)
         else:
           title = 'Fatal error in worker {}:\n{}'.format(self.name,msg)
         FancyReport.fail(title)
 #endclass
 
+class RemoteWorker(Worker,multiprocessing.Process):
+  def __init__(self, managerAddr,managerAuth):
+    multiprocessing.Process.__init__(self)
+    from multiprocessing.managers import BaseManager
+    class ManagerProxy(BaseManager): pass
+    ManagerProxy.register('getJobQueue')
+    ManagerProxy.register('getResultQueue')
+    print('Connecting to manager {}:{}'.format(managerAddr[0],managerAddr[1]))
+    self.manager = ManagerProxy(address=managerAddr,authkey=managerAuth)
+    self.manager.connect()
+    self.jobQueue = self.manager.getJobQueue()
+
+  def getTask(self):
+    (task,runId) = pickle.loads(self.jobQueue.get())
+    resultQueue = self.manager.getResultQueue(runId)
+    return (task,resultQueue)
+
+  @staticmethod
+  def putResult(result,resultQueue):
+    resultQueue.put(pickle.dumps(result))
+#endclass
+
 class WorkerThread(Worker,threading.Thread):
   def __init__(self, jobQueue, resultQueue):
     threading.Thread.__init__(self)
-    FancyWorker.__init__(self,jobQueue,resultQueue)
+    Worker.__init__(self,jobQueue,resultQueue)
 #endclass
 
 class WorkerProcess(Worker,multiprocessing.Process):
   def __init__(self, jobQueue, resultQueue):
     multiprocessing.Process.__init__(self)
-    FancyWorker.__init__(self,jobQueue,resultQueue)
+    Worker.__init__(self,jobQueue,resultQueue)
 #endclass
 
 ## LocalPool maintains a pool of workers, either implemented as 
@@ -1134,20 +1155,10 @@ class LocalPool:
         worker = WorkerProcess(self.jobQueue, self.resultQueue)
       worker.daemon = True
       worker.start()
+      
+  def getResult(self):
+    return self.resultQueue.get()
 #endclasss
-
-class RemoteWorker(Worker,multiprocessing.Process):
-  def __init__(self, managerAddr,managerAuth):
-    multiprocessing.Process.__init__(self)
-    from multiprocessing.managers import BaseManager
-    class ManagerProxy(BaseManager): pass
-    ManagerProxy.register('getJobQueue')
-    ManagerProxy.register('getResultQueue')
-    print('Connecting to manager {}:{}'.format(managerAddr[0],managerAddr[1]))
-    self.manager = ManagerProxy(address=managerAddr,authkey=managerAuth)
-    self.manager.connect()
-    self.jobQueue = self.manager.getJobQueue()
-#endclass
 
 ## As an alternative to maintaining a local pool of workers, this class 
 ## connects to a manager that distributes jobs to remote workers.
@@ -1167,6 +1178,9 @@ class RemotePoolClient:
     self.jobCount = 0
     self.resultCount = 0
     
+  def getResult(self):
+    return pickle.loads(self.resultQueue.get())
+
   def __del__(self):
     self.manager.popResultQueue(self.runId)
 #endclasss

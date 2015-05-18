@@ -2,30 +2,35 @@ import sys
 sys.path.append('../fancypipe')
 from fancypipe import *
 
-class ComplexTask(FancyTask):
-  def main(self,x,a):
-    y = x*a
+class DoSquare(FancyModule):
+  def main(self,x):
+    y = x*x
     return FancyOutput(y=y)
     
-class MainModule(FancyModule):
+class DoSum(FancyModule):
+  def main(self,x1,x2):
+    y = x1+x2
+    return FancyOutput(y=y)
+
+class MainTask(FancyModule):
   inputs = {
-    'x':{'default':5, 'help':'input x'},
-    'a1':{'default':100, 'help':'parameter value 1'},
-    'a2':{'default':200, 'help':'parameter value 2'}
+    'x1':{'default':3, 'help':'input x1'},
+    'x2':{'default':4, 'help':'input x2'}
   }
-  def main(self,x,a1,a2):
-    co1 = ComplexTask.fromParent(self).setInput(
-      x = x,
-      a = a1
+  def main(self,x1,x2):
+    task1 = DoSquare.fromParent(self).setInput(
+      x = x1
     )
-    co2 = ComplexTask.fromParent(self).setInput(
-      x = x,
-      a = a2
+    task2 = DoSquare.fromParent(self).setInput(
+      x = x2
     )
+    task3 = DoSum.fromParent(self).setInput(
+      x1 = task1.requestOutput('y'),
+      x2 = task2.requestOutput('y')
+    )      
     return FancyOutput(
-      y1 = co1.requestOutput('y'),
-      y2 = co2.requestOutput('y')
+      y = task3.requestOutput('y')
     )
     
 if __name__ == '__main__':
-  MainModule.fromCommandLine().run()
+  MainTask.fromCommandLine().run()

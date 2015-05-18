@@ -21,7 +21,7 @@ FancyPipe supports three modes of parallel operations, which can be
 specified as a command line option. For the code it does not 
 matter which parallelization option is chosen: for debugging you can
 use multi-threading or multi-processing on a laptop, and for production 
-you can setup a distributed processing cluster.
+you can employ a distributed processing cluster.
 
 Multi-threading
 ...............
@@ -43,7 +43,7 @@ To run tasks that run pure python code in parallel, the better solution
 is to create a separate proces (=python interpreter) for each parallel 
 task. This requires more overhead and memory than multi-threading, as it
 involves serializing and copying the input and output data of the tasks. 
-This all happens behind the scene.
+This all happens behind the scenes.
 
 The option "-workertype=P" invokes multi-processing.
 
