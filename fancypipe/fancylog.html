@@ -145,7 +145,8 @@ function log2tree(LOG) {
   for (var i=1; i<LOG.length; i++) {
     var nd = LOG[i];
     if (nd.id != undefined) {
-      var pa = nd.parentId;
+      var dotpos = nd.id.lastIndexOf('.');
+      var pa = nd.id.substr(0,dotpos);
       if (pa) {
         var j = ndid2i[pa];
         if (j == undefined) {
@@ -168,7 +169,7 @@ function log2tree(LOG) {
     } else {
       var j = ndid2i[nd.attachTo]
       if (j === undefined) {
-        printError('Cannot attach result to noon-existing node "'+nd.attachTo+'".')
+        printError('Cannot attach result to non-existing node "'+nd.attachTo+'".')
       } else {
         LOG[j].result[nd.name] = {args: nd.args,kwargs: nd.kwargs, type: nd.type}
       }

@@ -1,7 +1,7 @@
 Parallel processing
 ===================
 FancyPipe analyses the serial/parallel alignment of your tasks on the 
-fly in a bottom-up fashion. It starts at the output of the module whose 
+fly in a bottom-up fashion. It starts at the output of the task whose 
 run() method is called. Typically, the outputs contain dependencies on 
 tasks defined inside main(). 
 These tasks themselves may have dependencies on other tasks etc. etc. 
@@ -12,7 +12,7 @@ other ready-to-run tasks. Meanwhile, an array of worker nodes is waiting
 for jobs to appear in the queue. Upon completion, the worker node 
 submits the result to a *result queue*. The main process listens to this 
 queue, and feeds the result to tasks that need it as input. 
-This continues until all requested outputs of the outer module are 
+This continues until all requested outputs of the outer task are 
 computed.
 
 Multi-threading, multi-processing, and distributed processing

@@ -27,7 +27,7 @@ consists of just one task (../examples/onetask.py):
   sys.path.append('../fancypipe')
   from fancypipe import *
 
-  class DoSquare(FancyModule):
+  class DoSquare(FancyTask):
     inputs = odict(
       x = dict(
         type = int,
@@ -43,9 +43,9 @@ consists of just one task (../examples/onetask.py):
 
 The onetask.py code contains the following essential elements:
 
-* from fancypipe import * => this imports the public elements of the fancypipe module, after the system path has been updated to include the fancypipe folder.
+* from fancypipe import * => this imports the public elements of the fancypipe task, after the system path has been updated to include the fancypipe folder.
 
-* class DoSquare(FancyModule) => this is how a task is created; it must be derived from the *FancyModule* class. Of course, in practice your tasks should do more complex operations to offset the overhead introduced by the task definitions.
+* class DoSquare(FancyTask) => this is how a task is created; it must be derived from the *FancyTask* class. Of course, in practice your tasks should do more complex operations to offset the overhead introduced by the task definitions.
 
 * inputs = odict( ... ) => This defines the inputs of the task, whereby *odict* is defined in fancypipe as an alias to OrderedDictionary.
 
@@ -85,12 +85,12 @@ allow parallel execution  (../examples/twotasks_serial.py):
   sys.path.append('../fancypipe')
   from fancypipe import *
 
-  class DoSquare(FancyModule):
+  class DoSquare(FancyTask):
     def main(self,x):
       y = x*x
       return FancyOutput(y=y)
       
-  class MainTask(FancyModule):
+  class MainTask(FancyTask):
     inputs = {
       'x1':{'default':3, 'help':'input x1'},
       'x2':{'default':4, 'help':'input x2'}
@@ -129,17 +129,17 @@ but this time the code allows for parallel execution  (../examples/twotasks.py):
   sys.path.append('../fancypipe')
   from fancypipe import *
 
-  class DoSquare(FancyModule):
+  class DoSquare(FancyTask):
     def main(self,x):
       y = x*x
       return FancyOutput(y=y)
       
-  class DoSum(FancyModule):
+  class DoSum(FancyTask):
     def main(self,x1,x2):
       y = x1+x2
       return FancyOutput(y=y)
 
-  class MainTask(FancyModule):
+  class MainTask(FancyTask):
     inputs = {
       'x1':{'default':3, 'help':'input x1'},
       'x2':{'default':4, 'help':'input x2'}
@@ -172,7 +172,7 @@ previous script twotasks_serial.py:
 
   1. To serve as an input for another task. This is the case in the above code, where *requestOutput()* is called inside a *setInput()* context.
   
-  2. To serve as an output of a module. This is also used in the above code, where task3.requestOutput('y') is called inside a *return FancyOutput()* context.
+  2. To serve as an output of a task. This is also used in the above code, where task3.requestOutput('y') is called inside a *return FancyOutput()* context.
   
 It is a common error to use request objects in other places. For example, it is tempting to write, as in the serial code:
 
@@ -184,7 +184,25 @@ It is a common error to use request objects in other places. For example, it is 
 
 This is an error, because request objects cannot be summed. A separate task must be created for the summing operation, so that the request objects can be used as inputs.
 
-Internally, FancyPipe will make sure that before the *main()* method of a task is called, all its arguments are resolved. That means, if any argument is a request object, the module that it links to is run first and the request object is replaced by the actual value.
+Internally, FancyPipe will make sure that before the *main()* method of a task is called, all its arguments are resolved. That means, if any argument is a request object, the task that it links to is run first and the request object is replaced by the actual value.
 
+Calling external programs
+-------------------------
+Pipelining is all about glueing together different pieces of software. FancyPipe has a special class to run external executables: FancyExec. This class can be either used on its own, or you can use it as a base class instead of FancyTask.
+We first look at using FancyExec directly. In the example the executable is *python*, with the execute option -c set to "print(1+2)".
+
+::
+  cmd = ['python','-c' '"print(1+2)"']
+  doExec = FancyExec.fromParent(self).setInput(*cmd)
+  ans = doExec.run()
+
+Normally you would not call python as an external executable, here it is chosen because you have it installed for sure.
+As you can see, FancyExec is used directly to submit the command obtained by concatenating the elements of *cmd*, and it will return the output of the program (in this case: '2').
+Recall that the notation (*cmd) instructs python to convert the elements of *cmd* into separate inputs. All elements of *cmd* must be either strings or request objects that become strings when they are resolved.
+
+An issue with FancyExec is that you cannot directly connect it to other tasks, because its inputs cannot contain request objects, they must all be strings.
+
+Parallel processing paradigms
+-----------------------------
 After you have programmed a parallel pipeline, choose a
 `parallel processing paradigm <parallelprocessing.html>`_ to run it.
