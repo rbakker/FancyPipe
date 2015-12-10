@@ -36,9 +36,6 @@
           <a href="genindex.html" title="General Index"
              accesskey="I">index</a></li>
         <li class="right" >
-          <a href="py-modindex.html" title="Python Module Index"
-             >modules</a> |</li>
-        <li class="right" >
           <a href="parallelprocessing.html" title="Parallel processing"
              accesskey="N">next</a> |</li>
         <li class="right" >
@@ -59,6 +56,8 @@
 <li><a class="reference internal" href="#running-the-task">Running the task</a></li>
 <li><a class="reference internal" href="#two-tasks-serial-programming">Two tasks, serial programming</a></li>
 <li><a class="reference internal" href="#two-tasks-parallel-programming">Two tasks, parallel programming</a></li>
+<li><a class="reference internal" href="#calling-external-programs">Calling external programs</a></li>
+<li><a class="reference internal" href="#parallel-processing-paradigms">Parallel processing paradigms</a></li>
 </ul>
 </li>
 </ul>
@@ -116,7 +115,7 @@ consists of just one task (../examples/onetask.py):</p>
 <span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&#39;../fancypipe&#39;</span><span class="p">)</span>
 <span class="kn">from</span> <span class="nn">fancypipe</span> <span class="kn">import</span> <span class="o">*</span>
 
-<span class="k">class</span> <span class="nc">DoSquare</span><span class="p">(</span><span class="n">FancyModule</span><span class="p">):</span>
+<span class="k">class</span> <span class="nc">DoSquare</span><span class="p">(</span><span class="n">FancyTask</span><span class="p">):</span>
   <span class="n">inputs</span> <span class="o">=</span> <span class="n">odict</span><span class="p">(</span>
     <span class="n">x</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
       <span class="nb">type</span> <span class="o">=</span> <span class="nb">int</span><span class="p">,</span>
@@ -133,8 +132,8 @@ consists of just one task (../examples/onetask.py):</p>
 </div>
 <p>The onetask.py code contains the following essential elements:</p>
 <ul class="simple">
-<li>from fancypipe import * =&gt; this imports the public elements of the fancypipe module, after the system path has been updated to include the fancypipe folder.</li>
-<li>class DoSquare(FancyModule) =&gt; this is how a task is created; it must be derived from the <em>FancyModule</em> class. Of course, in practice your tasks should do more complex operations to offset the overhead introduced by the task definitions.</li>
+<li>from fancypipe import * =&gt; this imports the public elements of the fancypipe task, after the system path has been updated to include the fancypipe folder.</li>
+<li>class DoSquare(FancyTask) =&gt; this is how a task is created; it must be derived from the <em>FancyTask</em> class. Of course, in practice your tasks should do more complex operations to offset the overhead introduced by the task definitions.</li>
 <li>inputs = odict( ... ) =&gt; This defines the inputs of the task, whereby <em>odict</em> is defined in fancypipe as an alias to OrderedDictionary.</li>
 <li>x = dict( ... ) =&gt; Defines the input <em>x</em>.</li>
 <li>def main(self,x) =&gt; Every user-defined task must contain a function main(self, ...), whereby the inputs correspond to the keys of the &#8216;inputs&#8217; variable. It is mandatory that main() returns a FancyOutput object. This is just a container to store positional and keyword arguments. For example FancyOutput(y=y) has <em>y</em> as an output with key &#8216;y&#8217;.</li>
@@ -165,12 +164,12 @@ allow parallel execution  (../examples/twotasks_serial.py):</p>
 <span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&#39;../fancypipe&#39;</span><span class="p">)</span>
 <span class="kn">from</span> <span class="nn">fancypipe</span> <span class="kn">import</span> <span class="o">*</span>
 
-<span class="k">class</span> <span class="nc">DoSquare</span><span class="p">(</span><span class="n">FancyModule</span><span class="p">):</span>
+<span class="k">class</span> <span class="nc">DoSquare</span><span class="p">(</span><span class="n">FancyTask</span><span class="p">):</span>
   <span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">x</span><span class="p">):</span>
     <span class="n">y</span> <span class="o">=</span> <span class="n">x</span><span class="o">*</span><span class="n">x</span>
     <span class="k">return</span> <span class="n">FancyOutput</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>
 
-<span class="k">class</span> <span class="nc">MainTask</span><span class="p">(</span><span class="n">FancyModule</span><span class="p">):</span>
+<span class="k">class</span> <span class="nc">MainTask</span><span class="p">(</span><span class="n">FancyTask</span><span class="p">):</span>
   <span class="n">inputs</span> <span class="o">=</span> <span class="p">{</span>
     <span class="s">&#39;x1&#39;</span><span class="p">:{</span><span class="s">&#39;default&#39;</span><span class="p">:</span><span class="mi">3</span><span class="p">,</span> <span class="s">&#39;help&#39;</span><span class="p">:</span><span class="s">&#39;input x1&#39;</span><span class="p">},</span>
     <span class="s">&#39;x2&#39;</span><span class="p">:{</span><span class="s">&#39;default&#39;</span><span class="p">:</span><span class="mi">4</span><span class="p">,</span> <span class="s">&#39;help&#39;</span><span class="p">:</span><span class="s">&#39;input x2&#39;</span><span class="p">}</span>
@@ -206,17 +205,17 @@ but this time the code allows for parallel execution  (../examples/twotasks.py):
 <span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&#39;../fancypipe&#39;</span><span class="p">)</span>
 <span class="kn">from</span> <span class="nn">fancypipe</span> <span class="kn">import</span> <span class="o">*</span>
 
-<span class="k">class</span> <span class="nc">DoSquare</span><span class="p">(</span><span class="n">FancyModule</span><span class="p">):</span>
+<span class="k">class</span> <span class="nc">DoSquare</span><span class="p">(</span><span class="n">FancyTask</span><span class="p">):</span>
   <span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">x</span><span class="p">):</span>
     <span class="n">y</span> <span class="o">=</span> <span class="n">x</span><span class="o">*</span><span class="n">x</span>
     <span class="k">return</span> <span class="n">FancyOutput</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>
 
-<span class="k">class</span> <span class="nc">DoSum</span><span class="p">(</span><span class="n">FancyModule</span><span class="p">):</span>
+<span class="k">class</span> <span class="nc">DoSum</span><span class="p">(</span><span class="n">FancyTask</span><span class="p">):</span>
   <span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">x1</span><span class="p">,</span><span class="n">x2</span><span class="p">):</span>
     <span class="n">y</span> <span class="o">=</span> <span class="n">x1</span><span class="o">+</span><span class="n">x2</span>
     <span class="k">return</span> <span class="n">FancyOutput</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>
 
-<span class="k">class</span> <span class="nc">MainTask</span><span class="p">(</span><span class="n">FancyModule</span><span class="p">):</span>
+<span class="k">class</span> <span class="nc">MainTask</span><span class="p">(</span><span class="n">FancyTask</span><span class="p">):</span>
   <span class="n">inputs</span> <span class="o">=</span> <span class="p">{</span>
     <span class="s">&#39;x1&#39;</span><span class="p">:{</span><span class="s">&#39;default&#39;</span><span class="p">:</span><span class="mi">3</span><span class="p">,</span> <span class="s">&#39;help&#39;</span><span class="p">:</span><span class="s">&#39;input x1&#39;</span><span class="p">},</span>
     <span class="s">&#39;x2&#39;</span><span class="p">:{</span><span class="s">&#39;default&#39;</span><span class="p">:</span><span class="mi">4</span><span class="p">,</span> <span class="s">&#39;help&#39;</span><span class="p">:</span><span class="s">&#39;input x2&#39;</span><span class="p">}</span>
@@ -247,7 +246,7 @@ previous script twotasks_serial.py:</p>
 <li>In MainTask.main, task1 and task2 are defined, their input is set, but they are not run.</li>
 <li>A third task is created that takes the sum of its two inputs. In <em>task3.setInput()</em>, the outputs of <em>task1</em> and <em>task2</em> are obtained with the <em>requestOutput()</em> method. This method can be called on tasks before they are run. It returns a request object (instance of FancyLink). It is important to remember that request objects can only be used for two purposes:<ol class="arabic">
 <li>To serve as an input for another task. This is the case in the above code, where <em>requestOutput()</em> is called inside a <em>setInput()</em> context.</li>
-<li>To serve as an output of a module. This is also used in the above code, where task3.requestOutput(&#8216;y&#8217;) is called inside a <em>return FancyOutput()</em> context.</li>
+<li>To serve as an output of a task. This is also used in the above code, where task3.requestOutput(&#8216;y&#8217;) is called inside a <em>return FancyOutput()</em> context.</li>
 </ol>
 </li>
 </ul>
@@ -258,7 +257,25 @@ previous script twotasks_serial.py:</p>
 </pre></div>
 </div>
 <p>This is an error, because request objects cannot be summed. A separate task must be created for the summing operation, so that the request objects can be used as inputs.</p>
-<p>Internally, FancyPipe will make sure that before the <em>main()</em> method of a task is called, all its arguments are resolved. That means, if any argument is a request object, the module that it links to is run first and the request object is replaced by the actual value.</p>
+<p>Internally, FancyPipe will make sure that before the <em>main()</em> method of a task is called, all its arguments are resolved. That means, if any argument is a request object, the task that it links to is run first and the request object is replaced by the actual value.</p>
+</div>
+<div class="section" id="calling-external-programs">
+<h2>Calling external programs<a class="headerlink" href="#calling-external-programs" title="Permalink to this headline">¶</a></h2>
+<p>Pipelining is all about glueing together different pieces of software. FancyPipe has a special class to run external executables: FancyExec. This class can be either used on its own, or you can use it as a base class instead of FancyTask.
+We first look at using FancyExec directly. In the example the executable is <em>python</em>, with the execute option -c set to &#8220;print(1+2)&#8221;.</p>
+<dl class="docutils">
+<dt>::</dt>
+<dd>cmd = [&#8216;python&#8217;,&#8217;-c&#8217; &#8216;&#8220;print(1+2)&#8221;&#8217;]
+doExec = FancyExec.fromParent(self).setInput(<a href="#id1"><span class="problematic" id="id2">*</span></a>cmd)
+ans = doExec.run()</dd>
+</dl>
+<p>Normally you would not call python as an external executable, here it is chosen because you have it installed for sure.
+As you can see, FancyExec is used directly to submit the command obtained by concatenating the elements of <em>cmd</em>, and it will return the output of the program (in this case: &#8216;2&#8217;).
+Recall that the notation (<em>cmd) instructs python to convert the elements of *cmd</em> into separate inputs. All elements of <em>cmd</em> must be either strings or request objects that become strings when they are resolved.</p>
+<p>An issue with FancyExec is that you cannot directly connect it to other tasks, because its inputs cannot contain request objects, they must all be strings.</p>
+</div>
+<div class="section" id="parallel-processing-paradigms">
+<h2>Parallel processing paradigms<a class="headerlink" href="#parallel-processing-paradigms" title="Permalink to this headline">¶</a></h2>
 <p>After you have programmed a parallel pipeline, choose a
 <a class="reference external" href="parallelprocessing.html">parallel processing paradigm</a> to run it.</p>
 </div>
@@ -276,9 +293,6 @@ previous script twotasks_serial.py:</p>
         <li class="right" style="margin-right: 10px">
           <a href="genindex.html" title="General Index"
              >index</a></li>
-        <li class="right" >
-          <a href="py-modindex.html" title="Python Module Index"
-             >modules</a> |</li>
         <li class="right" >
           <a href="parallelprocessing.html" title="Parallel processing"
              >next</a> |</li>

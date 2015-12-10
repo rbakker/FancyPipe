@@ -26,7 +26,7 @@
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="top" title="FancyPipe 1.0 documentation" href="index.html" />
     <link rel="next" title="Classes and methods" href="classesmethods.html" />
-    <link rel="prev" title="Creating a basic FancyPipe program" href="parallelprogramming.html" /> 
+    <link rel="prev" title="Creating a FancyPipe program" href="parallelprogramming.html" /> 
   </head>
   <body>
     <div class="related">
@@ -36,13 +36,10 @@
           <a href="genindex.html" title="General Index"
              accesskey="I">index</a></li>
         <li class="right" >
-          <a href="py-modindex.html" title="Python Module Index"
-             >modules</a> |</li>
-        <li class="right" >
           <a href="classesmethods.html" title="Classes and methods"
              accesskey="N">next</a> |</li>
         <li class="right" >
-          <a href="parallelprogramming.html" title="Creating a basic FancyPipe program"
+          <a href="parallelprogramming.html" title="Creating a FancyPipe program"
              accesskey="P">previous</a> |</li>
         <li><a href="index.html">FancyPipe 1.0 documentation</a> &raquo;</li> 
       </ul>
@@ -67,7 +64,7 @@
 
   <h4>Previous topic</h4>
   <p class="topless"><a href="parallelprogramming.html"
-                        title="previous chapter">Creating a basic FancyPipe program</a></p>
+                        title="previous chapter">Creating a FancyPipe program</a></p>
   <h4>Next topic</h4>
   <p class="topless"><a href="classesmethods.html"
                         title="next chapter">Classes and methods</a></p>
@@ -100,7 +97,7 @@
   <div class="section" id="parallel-processing">
 <h1>Parallel processing<a class="headerlink" href="#parallel-processing" title="Permalink to this headline">¶</a></h1>
 <p>FancyPipe analyses the serial/parallel alignment of your tasks on the
-fly in a bottom-up fashion. It starts at the output of the module whose
+fly in a bottom-up fashion. It starts at the output of the task whose
 run() method is called. Typically, the outputs contain dependencies on
 tasks defined inside main().
 These tasks themselves may have dependencies on other tasks etc. etc.
@@ -111,7 +108,7 @@ other ready-to-run tasks. Meanwhile, an array of worker nodes is waiting
 for jobs to appear in the queue. Upon completion, the worker node
 submits the result to a <em>result queue</em>. The main process listens to this
 queue, and feeds the result to tasks that need it as input.
-This continues until all requested outputs of the outer module are
+This continues until all requested outputs of the outer task are
 computed.</p>
 <div class="section" id="multi-threading-multi-processing-and-distributed-processing">
 <h2>Multi-threading, multi-processing, and distributed processing<a class="headerlink" href="#multi-threading-multi-processing-and-distributed-processing" title="Permalink to this headline">¶</a></h2>
@@ -242,13 +239,10 @@ by a hard-to-guess string.</p>
           <a href="genindex.html" title="General Index"
              >index</a></li>
         <li class="right" >
-          <a href="py-modindex.html" title="Python Module Index"
-             >modules</a> |</li>
-        <li class="right" >
           <a href="classesmethods.html" title="Classes and methods"
              >next</a> |</li>
         <li class="right" >
-          <a href="parallelprogramming.html" title="Creating a basic FancyPipe program"
+          <a href="parallelprogramming.html" title="Creating a FancyPipe program"
              >previous</a> |</li>
         <li><a href="index.html">FancyPipe 1.0 documentation</a> &raquo;</li> 
       </ul>

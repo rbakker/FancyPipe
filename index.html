@@ -35,9 +35,6 @@
           <a href="genindex.html" title="General Index"
              accesskey="I">index</a></li>
         <li class="right" >
-          <a href="py-modindex.html" title="Python Module Index"
-             >modules</a> |</li>
-        <li class="right" >
           <a href="installation.html" title="Installation"
              accesskey="N">next</a> |</li>
         <li><a href="#">FancyPipe 1.0 documentation</a> &raquo;</li> 
@@ -51,7 +48,7 @@
   <h3><a href="#">Table Of Contents</a></h3>
   <ul>
 <li><a class="reference internal" href="#">FancyPipe</a><ul>
-<li><a class="reference internal" href="#parallel-execution">Parallel execution</a></li>
+<li><a class="reference internal" href="#programming-serial-vs-parallel">Programming: serial vs. parallel</a></li>
 <li><a class="reference internal" href="#html-logging">HTML logging</a></li>
 <li><a class="reference internal" href="#parameter-management">Parameter management</a></li>
 <li><a class="reference internal" href="#command-line-interface">Command line interface</a></li>
@@ -107,42 +104,56 @@ main job: the design of the processing steps.</p>
 <li>temporary files and garbage collection</li>
 <li>error handling</li>
 </ul>
-<div class="section" id="parallel-execution">
-<h2>Parallel execution<a class="headerlink" href="#parallel-execution" title="Permalink to this headline">¶</a></h2>
-<p>In FancyPipe, you build your pipeline as a (nested) set of FancyModules.
-Each FancyModule has a main( ... ) method, which contains the code
-to transform inputs to outputs. This code may call external programs
-and/or other FancyModules.
-The main() method should not be called directly. Instead, there are two
-proper ways to run modules. The simplest way is to use this chain of
-commands:</p>
-<div class="highlight-python"><div class="highlight"><pre><span class="n">myModule</span><span class="o">.</span><span class="n">setInput</span><span class="p">(</span> <span class="o">...</span> <span class="p">)</span>
-<span class="n">myModule</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
-<span class="n">myModule</span><span class="o">.</span><span class="n">getOutput</span><span class="p">(</span> <span class="n">key</span> <span class="p">)</span>
+<div class="section" id="programming-serial-vs-parallel">
+<h2>Programming: serial vs. parallel<a class="headerlink" href="#programming-serial-vs-parallel" title="Permalink to this headline">¶</a></h2>
+<p>In FancyPipe, you build your pipeline as a (nested) set of FancyTasks.
+When you run() a FancyTask, three methods are called successively:
+init(...), main(...), and done(...), thereby using the result of each
+method as input to the next. By default, all three just copy input to
+output, so to have the Task do something useful, you need to overwrite
+at least one of these methods. Only main() should contain cpu-intensive
+code, because it is run in parallel mode whenever possible.
+If the task is not cpu-intensive at all, then you can save parallel
+processing overhead by leaving main() undefined and putting all code in
+init().</p>
+<p>Once the Task is implemented, there are two ways to run it.
+The simplest way is to use this chain of commands:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">myTask</span><span class="o">.</span><span class="n">setInput</span><span class="p">(</span> <span class="o">...</span> <span class="p">)</span>
+<span class="n">myTask</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+<span class="n">myTask</span><span class="o">.</span><span class="n">getOutput</span><span class="p">(</span> <span class="n">key</span> <span class="p">)</span>
 </pre></div>
 </div>
-<p>This chain does not allow parallel execution. For that you need to
-use:</p>
-<div class="highlight-python"><div class="highlight"><pre><span class="n">module1a</span><span class="o">.</span><span class="n">setInput</span><span class="p">(</span> <span class="o">...</span> <span class="p">)</span>
-<span class="n">module1b</span><span class="o">.</span><span class="n">setInput</span><span class="p">(</span> <span class="o">...</span> <span class="p">)</span>
-<span class="n">module2</span><span class="o">.</span><span class="n">setInput</span><span class="p">(</span>
-  <span class="n">module1a</span><span class="o">.</span><span class="n">requestOutput</span><span class="p">(</span><span class="n">key</span><span class="p">),</span>
-  <span class="n">module1b</span><span class="o">.</span><span class="n">requestOutput</span><span class="p">(</span><span class="n">key</span><span class="p">),</span>
+<p>With myTask.setInput() you set the variables that will be passed to
+myTask.init(). myTask.run() stores the output of myTask.done()
+inside the myTask object. myTask.getOutput( key ) retrieves the key-th
+element of this stored output.</p>
+<p>The above code does not allow parallel execution. For that you need to use:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">task1a</span><span class="o">.</span><span class="n">setInput</span><span class="p">(</span> <span class="o">...</span> <span class="p">)</span>
+<span class="n">task1b</span><span class="o">.</span><span class="n">setInput</span><span class="p">(</span> <span class="o">...</span> <span class="p">)</span>
+<span class="n">task2</span><span class="o">.</span><span class="n">setInput</span><span class="p">(</span>
+  <span class="n">task1a</span><span class="o">.</span><span class="n">requestOutput</span><span class="p">(</span><span class="n">key</span><span class="p">),</span>
+  <span class="n">task1b</span><span class="o">.</span><span class="n">requestOutput</span><span class="p">(</span><span class="n">key</span><span class="p">),</span>
   <span class="o">...</span>
 <span class="p">)</span>
-<span class="n">module2</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+<span class="n">task2</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 </pre></div>
 </div>
-<p>When module2 is run, FancyPipe will automatically detect that its inputs
-contain output-requests to module1a and module1b, and it will run these
-modules in parallel. This illustrates the basic idea, the
-<a class="reference external" href="parallelprogramming.html">parallel programming page</a> describes more complex cases.</p>
+<p>When task2 is run, FancyPipe will automatically detect that its inputs
+contain output-requests to task1a and task1b, and it will run these
+tasks first, in parallel. This illustrates the basic idea of parallel
+programming in FancyPipe.
+The <a class="reference external" href="parallelprogramming.html">parallel programming page</a> describes
+more complex cases.</p>
+<p>When you call a FancyPipe program from the command line, you can specify
+the resources that are available for parallel processing. Three
+<a class="reference external" href="parallelprocessing.html">parallel execution modes</a> are supported:
+multi-threading, multi-processing, and distributed processing (experimental).</p>
 </div>
 <div class="section" id="html-logging">
 <h2>HTML logging<a class="headerlink" href="#html-logging" title="Permalink to this headline">¶</a></h2>
-<p>Whenever a module is run, a json-encoded entry is added to a log file,
+<p>Whenever a task is run, a json-encoded entry is added to a log file,
 shared by all parallel processing nodes. There is no need to
-explicitly add entries to the log file. When the module finishes, its
+explicitly add entries to the log file. When the task finishes, its
 console output is attached to the log entry.
 The page &#8216;fancylog.html&#8217; contains scripts to disentangle this log file,
 and to present the results in a hierarchical tree, which can already
@@ -153,32 +164,39 @@ be viewed while the job is running.</p>
 <p>Data processing pipelines deal with two sets of parameters:</p>
 <ol class="arabic simple">
 <li>Parameters that control the environment in which the pipeline runs.</li>
-<li>Parameters used by the pipeline modules.</li>
+<li>Parameters used by the pipeline tasks.</li>
 </ol>
 <p>In FancyPipe, the environment parameters need to be passed only to the
-outer module, typically from the command line. They are propagated
-automatically to all child modules.</p>
-<p>Module parameters can be provided at three levels.</p>
+outer task, typically from the command line. They are propagated
+automatically to all child tasks.</p>
+<p>Task parameters can be provided at three levels.</p>
 <ol class="arabic simple">
-<li>Default values are specified in the module code.</li>
+<li>Default values are specified in the task code.</li>
 <li>A configuration file may override these defaults, by specifying context-value pairs. The context specifies under which conditions the parameter should be used.</li>
-<li>The parent module may override the configuration file values.</li>
+<li>The parent task may override the configuration file values.</li>
 </ol>
 </div>
 <div class="section" id="command-line-interface">
 <h2>Command line interface<a class="headerlink" href="#command-line-interface" title="Permalink to this headline">¶</a></h2>
-<p>Each module for which input types are defined can be run from the
+<p>Each task for which input types are defined can be run from the
 command line, by the name of the source file. If the source file
-contains multiple modules, then the generic command &#8216;runmodule.py&#8217; can
-be used to specify the sourcefile and module name.</p>
+contains multiple tasks, then the generic command &#8216;runtask.py&#8217; can
+be used to specify the sourcefile and task name.</p>
 </div>
 <div class="section" id="temporary-files-and-garbage-collection">
 <h2>Temporary files and garbage collection<a class="headerlink" href="#temporary-files-and-garbage-collection" title="Permalink to this headline">¶</a></h2>
-<p>The outer module uses an input parameter &#8216;tempdir&#8217; to manage storage
-of intermediate results. Child modules can specify a &#8216;tempsubdir&#8217; to
-have their output directed to tempdir/tempsubdir.
-The removal of intermediate results when they are no longer needed
-is not yet activated.</p>
+<p>The outer task uses an input parameter &#8216;tempdir&#8217; to manage storage of
+intermediate results. Child tasks create subdirectories in the parent
+folder if they need to save temporary files. Directory names start with
+a digit, which represents the order at which the child was created.</p>
+<p>Garbage collection is the removal of intermediate results when they are
+no longer needed. When a task has completed, all temporary files created
+by task.tempdir() and task.tempfile() are removed, unless these files
+are returned as output of the task. In that case, the parent task inherits
+the files and either removes them later, or returns them as output.
+In the end of this recursive scheme, all temporary files except for
+those returned by the outer task are removed.</p>
+<p>The command line option &#8216;-nocleanup&#8217; disables garbage collection.</p>
 </div>
 <div class="section" id="error-handling">
 <h2>Error handling<a class="headerlink" href="#error-handling" title="Permalink to this headline">¶</a></h2>
@@ -198,6 +216,8 @@ the html log file.</p>
 <li class="toctree-l2"><a class="reference internal" href="parallelprogramming.html#running-the-task">Running the task</a></li>
 <li class="toctree-l2"><a class="reference internal" href="parallelprogramming.html#two-tasks-serial-programming">Two tasks, serial programming</a></li>
 <li class="toctree-l2"><a class="reference internal" href="parallelprogramming.html#two-tasks-parallel-programming">Two tasks, parallel programming</a></li>
+<li class="toctree-l2"><a class="reference internal" href="parallelprogramming.html#calling-external-programs">Calling external programs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="parallelprogramming.html#parallel-processing-paradigms">Parallel processing paradigms</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="parallelprocessing.html">Parallel processing</a><ul>
@@ -230,9 +250,6 @@ the html log file.</p>
         <li class="right" style="margin-right: 10px">
           <a href="genindex.html" title="General Index"
              >index</a></li>
-        <li class="right" >
-          <a href="py-modindex.html" title="Python Module Index"
-             >modules</a> |</li>
         <li class="right" >
           <a href="installation.html" title="Installation"
              >next</a> |</li>
