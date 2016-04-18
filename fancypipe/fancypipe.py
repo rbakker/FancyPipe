@@ -959,11 +959,13 @@ class Task():
 class ArgParse:
   # Parse external inputs, from commandline or configfile.
   @classmethod
-  def _parseInputs(cls,raw,cfg):
+  def _parseInputs(cls,raw,cfg,presets={}):
     if cls.inputs is None: return {}
     kwargs = {}
     for key,inp in cls.inputs.items():
-      if key in cfg:
+      if key in presets:
+        kwargs[key] = presets[key]
+      elif key in cfg:
         # typecast
         tp = inp['type'] if 'type' in inp else str
         kwargs[key] = tp(cfg[key])
@@ -980,16 +982,13 @@ class ArgParse:
           kwargs[key] = tp(raw[key])
         elif key not in kwargs:
           raise ValueError('Missing input "{}". Searched commandline arguments, configuration file and default.'.format(key))
-    
     return kwargs
 
   @classmethod
-  def parsedArgs(cls,cmdArgs,fancyConfig=None,presets=None):
+  def parsedArgs(cls,cmdArgs,fancyConfig=None,presets={}):
     configArgs = fancyConfig.classDefaults(cls.__name__) if fancyConfig else {}
-    parsedArgs = cls._parseInputs(cmdArgs,configArgs)
-    if presets:
-      for k in presets: parsedArgs[k] = presets[k]
-    return parsedArgs
+    combinedArgs = cls._parseInputs(cmdArgs,configArgs,presets)
+    return combinedArgs
 #endclass
 
 
