@@ -51,19 +51,18 @@ function doToggle(elem) {
   elem.innerHTML = toggleHtml(status);
 }
 
-function genTable(th,args,kwargs,className) {
+function genTable(th,data,className) {
   tr = th ? [th] : [];
-  if (args && args.length) {
-    for (var i=0; i<args.length; i++) {
-      tr.push('<td colspan="2">'+escapeHtml(args[i])+'</td>');
-    }
-  }
-  if (kwargs) {
-    for (var k in kwargs) {
-      v = kwargs[k]
-      if (typeof(v) == 'object') v = '<pre>'+escapeHtml(JSON.stringify(v,undefined,2))+'</pre>';
-      else v = escapeHtml(v)
-      tr.push('<td>'+k+'</td><td>'+v+'</td>');
+  if (data) {
+    isArray = data instanceof Array;
+    if (data instanceof Object) {
+      for (var k in data) {
+        v = data[k]
+        if (typeof(v) == 'object') v = '<pre>'+escapeHtml(JSON.stringify(v,undefined,2))+'</pre>';
+        else v = escapeHtml(v);
+        if (isArray) tr.push('<td colspan="2">'+v+'</td>');
+        else tr.push('<td>'+k+'</td><td>'+v+'</td>');
+      }
     }
   }
   return '<table class="'+className+'"><tr>'+tr.join('</tr><tr>')+'</tr></table>';
@@ -73,7 +72,6 @@ function entryHtml(entry,tagName,level) {
   if (!level) level = 0;
   if (!tagName) tagName = 'h3';
   var title = escapeHtml(entry.title != undefined ? entry.title : entry.cmd);
-  var defines = entry.defines;
   var cmd = escapeHtml(entry.cmd+'['+entry.id+']');
   var status = 'disabled';
   if (level>0) status = 'open';
@@ -83,31 +81,34 @@ function entryHtml(entry,tagName,level) {
   var endContent = '</div>';
   var ans = toggleMe+'<'+tagName+'>'+title+'</'+tagName+'>'+startContent;
   var th = '<td colspan="2"><b>'+cmd+'</b></td>';
-  ans += genTable(th,entry.args,entry.kwargs,'cmd');
+  var input = {};
+  if (entry.args) input['args'] = entry.args;
+  if (entry.kwargs) input['kwargs'] = entry.kwargs;
+  ans += genTable(th,input,'cmd');
   var result = entry.result;
   if (Object.keys(result).length) {
     ans += '<div class="result">';
     for (var name in result) {
-      ans += '<b>'+name+'</b>';
       var R = result[name];
+      ans += '<b>'+name+'</b>'+(R.ranAt ? ' ran at '+R.ranAt+')' : '');
       if (R.type == 'text') {
-        var lines = R.args;
+        var lines = R.value;
         var style = lines.length>8 ? ' class="scrollbox"' : '';
         ans += '<div'+style+'>'
         for (k in lines) lines[k] = escapeHtml(lines[k]);
         ans += '<code>'+lines.join('<br/>')+'</code>';
         ans += '</div>';
       } else if (R.type == 'file') {
-        ans += '<a href="file:///'+R.args[0]+'">'+R.args[0]+'</a>';
+        ans += '<a href="file:///'+R.value+'">'+R.value+'</a>';
       } else {
-        ans += '<div>'
-        if (R.args != undefined || R.kwargs != undefined) {
-          ans += genTable(undefined,R.args,R.kwargs,'cmd');
+        ans += '<div>';
+        if (R.value != undefined) {
+          ans += genTable(undefined,R.value,'cmd');
         }
         ans += '</div>';
         if (R.type == 'error') { 
           printError(name); 
-          printError(R.args)
+          printError(R.value)
         }
       }
     }
@@ -145,6 +146,7 @@ function log2tree(LOG) {
   for (var i=1; i<LOG.length; i++) {
     var nd = LOG[i];
     if (nd.id != undefined) {
+      // create new node
       var dotpos = nd.id.lastIndexOf('.');
       var pa = nd.id.substr(0,dotpos);
       if (pa) {
@@ -167,11 +169,14 @@ function log2tree(LOG) {
         LOG[0].entries.push(nd);
       }
     } else {
+      // attach to existing node
       var j = ndid2i[nd.attachTo]
       if (j === undefined) {
         printError('Cannot attach result to non-existing node "'+nd.attachTo+'".')
       } else {
-        LOG[j].result[nd.name] = {args: nd.args,kwargs: nd.kwargs, type: nd.type}
+        // maintain compatibility with older log files
+        if (nd.args && nd.kwargs) nd.result = [nd.args,nd.kwargs];
+        LOG[j].result[nd.name] = {value: nd.result, type: nd.type, ranAt: nd.ranAt};
       }
     }
   }
@@ -195,4 +200,3 @@ function mainHtml(LOG) {
 <div id="main"></div>
 </body>
 </html>
-

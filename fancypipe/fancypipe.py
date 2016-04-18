@@ -18,31 +18,24 @@
 #
 # FancyPipe works in both Python 2.7 and Python 3
 #
-# Useful links:
+# Links used while developing this code:
 # https://pythonhosted.org/joblib/parallel.html
 # http://eli.thegreenplace.net/2012/01/24/distributed-computing-in-python-with-multiprocessing
 # http://bugs.python.org/issue7503
+# https://www.artima.com/weblogs/viewpost.jsp?thread=240845
 #
-## Use Processes to execute compute-intensive tasks written in
-## python. Data will be serialized and copied, so that multiple 
-## instances of Python run in parallel.
-## Use Threads if the bottleneck in your tasks is waiting for external 
-## processes to finish or for data to become available.
-## Threads avoid serializing and copying data, because they use 
-## shared memory. However, CPython does not run threads in parallel,
-## it switches between them.
 
 from __future__ import print_function
 from __future__ import unicode_literals
 
 # These functions and classes get imported after "from fancypipe import *"
 __all__ = [
-  'assertPassword','assertBool','assertFile','assertDir','assertList','assertMultiSelect','assertDict','assertExec','assertToken',
+  'assertPassword','assertBool','assertFile','assertOutputFile','assertDir','assertList','assertMultiSelect','assertDict','assertExec','assertToken',
   'assertMatch','assertInstance','assertType',
-  'odict',
+  'odict','fancyPrint','fancyLog',
   'FANCYDEBUG',
-  'FancyOutputFile','FancyTempFile','FancyPassword','FancyLink','FancyArgs','FancyOutput','FancyInput','FancyList','FancyDict',
-  'Task','FancyTask','FancyFunc','FancyExec','FancyLog','FancyReport'
+  'FancyOutputFile','FancyTempFile','FancyPassword','FancyLink','FancyValue','FancyArgs','FancyList','FancyDict',
+  'Task','FancyTask','FancyExec','FancyTaskManager'
 ]
 
 import os,sys
@@ -65,6 +58,37 @@ except ImportError:
 import traceback
 import string,StringIO, random
 
+# Global task manager and worker thread/process
+global_taskManager = None
+
+# Constants to indicate result-type of a task.
+Result_Success = 0
+Result_Fail = 1
+Result_Print = 2
+Result_Log = 3
+
+# Constants to indicate log targets.
+LogTo_Console = 1
+LogTo_File = 2
+LogTo_Overwrite = 4
+
+## Constants to indicate the run-status of a task.
+Task_Reset = 0
+Task_ResolvingInput = 1
+Task_Submitted = 2
+Task_ResolvingOutput = 3
+Task_Completed = 4
+
+# Print a message from a possibly remote worker.
+def fancyPrint(s):
+  if global_taskManager: global_taskManager.print(s)
+  else: print(s)
+
+# Create log file entry
+def fancyLog(data,name=None,tp='message'):
+  global_taskManager.log(data,name,tp)
+
+# Ordered dictionary class for setting inputs.
 class odict(OrderedDict):
   def __init__(self, *keyvals):
     try:
@@ -101,6 +125,11 @@ def assertFile(s):
   """ Assert that the input is an existing file. """
   if not op.isfile(s): raise AssertionError('String "{}" is not an existing file.'.format(s))
   return s
+
+def assertOutputFile(s):
+  """ Assert that the input is a valid filename, to be used as an output file. """
+  if not os.access(op.dirname(s), os.W_OK): raise AssertionError('String "{}" does not represent a valid output file.'.format(s))
+  return FancyOutputFile(s)
 
 def assertDir(s):
   """ Assert that the input is an existing directory. """
@@ -190,14 +219,14 @@ def assertType(tp,allow={}):
         raise AssertionError('Value "{}" cannot be converted to type "{}".'.format(v,tp))
   return f
 
-def type_jobserver(v):
+def assertJobServer(v):
   if v:
     addr = v.split(':')
     port = int(addr[1]) if len(addr)>1 else 51423
     return (addr[0],port)
   else:
     return v
-  
+    
 def FANCYDEBUG(*args,**kwargs):
   traceback = kwargs['traceback'] if 'traceback' in kwargs else 2
   frame = inspect.currentframe()
@@ -207,7 +236,7 @@ def FANCYDEBUG(*args,**kwargs):
     msg += ''.join(['{}. {}\n'.format(i,v[4][0].strip()) for i,v in enumerate(outerframes[1:min(len(outerframes),traceback+1)])])
   except:
     pass
-  msg += '\n'.join(['{}'.format(v) for v in args])+'\n'
+  msg += '\n'.join([repr(v) for v in args])+'\n'
   FancyReport.warning(msg)
 
 def fancyRemoveFiles(files, exclude=set()):
@@ -261,25 +290,19 @@ class FancyReport:
     exc_type, exc_value, exc_traceback = sys.exc_info() 
     return traceback.format_exception(exc_type, exc_value, exc_traceback)
 
-  def success(self,*args,**kwargs):
+  def success(self,result):
     if self.rpc_id:
       self.uncapture()
       result = {
         'jsonrpc':'2.0',
         'id':self.rpc_id,
-        'result': {
-          'stdout': self.stdout1.getvalue(),
-          'stderr': self.stderr1.getvalue(),
-          'args': FancyLog.stringifyList(args),
-          'kwargs': FancyLog.stringifyDict(kwargs)
-        }
+        'result': FancyLog.jsonifyValue(result),
+        'stdout': self.stdout1.getvalue(),
+        'stderr': self.stderr1.getvalue()
       }
       indent = 2
     else:
-      result = (
-        FancyLog.summarizeList(args),
-        FancyLog.summarizeDict(kwargs)
-      )
+      result = FancyLog.jsonifyValue(result,summarize=True)
       indent = 2
     print(json.dumps(result,indent=indent))
 
@@ -312,152 +335,131 @@ class FancyReport:
 
 ## Used for logging to console and html-file.
 class FancyLog:
-  def __init__(self, logdir=None,loglevel=3):
-    self.logdir = logdir
-    self.logfile = None
-    if logdir:
-      if not op.isdir(logdir):
-        print('Creating new log directory "{}".'.format(logdir))
-        os.makedirs(logdir)
-      logfilesdir = op.join(logdir,'fancylog_files')
-      if not op.isdir(logfilesdir):
-        print('Creating new log_files directory "{}".'.format(logfilesdir))
-        os.mkdir(logfilesdir)
-      self.logdir = logdir
-      self.logfile = op.join(logdir,'fancylog.js')
-      if not op.isfile(self.logfile):
-        self.reset()
-    self.loglevel = loglevel
+  def __init__(self, logDir=None,logLevel=3,logTo=(LogTo_Console|LogTo_File|LogTo_Overwrite)):
+    self.logDir = logDir
+    self.logFile = None
+    if logDir:
+      if not op.isdir(logDir):
+        fancyPrint('Creating new log directory "{}".'.format(logDir))
+        os.makedirs(logDir)
+      logFilesdir = op.join(logDir,'fancylog_files')
+      if not op.isdir(logFilesdir):
+        fancyPrint('Creating new log_files directory "{}".'.format(logFilesdir))
+        os.mkdir(logFilesdir)
+      self.logDir = logDir
+      self.logFile = op.join(logDir,'fancylog.js')
+      if not op.isfile(self.logFile):
+        self.reset(logTo & LogTo_Overwrite)
+    self.logTo = logTo if self.logFile else logTo & ~LogTo_File
+    self.logLevel = logLevel
   
-  @classmethod
-  def fromParent(cls,parentTask):
-    try:
-      return parentTask.fancyLog
-    except:
-      return cls()
-    
+  def reset(self,overwrite=False):
+    if op.isfile(self.logFile) and not overwrite:
+      raise Exception('Logfile "{}" already exists, use RESET to overwrite.'.format(self.logFile))
+    with codecs.open(self.logFile,'w',encoding='utf-8') as log:
+      log.write('var LOG = [];\n\n')
+    htmlsrc = op.join(op.dirname(__file__),'fancylog.html')
+    htmltgt = op.join(self.logDir,'fancylog.html')
+    if not op.isfile(htmltgt):
+      import shutil
+      shutil.copyfile(htmlsrc,htmltgt)
+
   @staticmethod
-  def stringifyValue(v):
-    #if hasattr(v,'tolist'): v = v.tolist()
-    if isinstance(v,(tuple, list)): return FancyLog.stringifyList(v)
-    if isinstance(v,(dict)): return FancyLog.stringifyDict(v)
+  def jsonifyValue(v,summarize=False):
+    if not summarize and hasattr(v,'tolist'): return v.tolist()
+    if isinstance(v,(tuple, list)): return FancyLog.jsonifyList(v,summarize)
+    if isinstance(v,(dict)): return FancyLog.jsonifyDict(v,summarize)
     if isinstance(v,(int,bool,float)) or v is None: return v
-    return '{}'.format(v)
+    if hasattr(v,'jsonify'): return v.jsonify(summarize)
+    return str(v)
 
   @staticmethod
-  def summarizeValue(v):
-    #if hasattr(v,'tolist'): v = v.tolist()
-    if isinstance(v,(tuple, list)): return FancyLog.summarizeList(v)
-    if isinstance(v,(dict)): return FancyLog.summarizeDict(v)
-    if isinstance(v,(int,bool,float)) or v is None: return v
-    return '{}'.format(v)
-
-  @staticmethod
-  def stringifyList(args):
-    return [FancyLog.stringifyValue(v) for v in args]
-
-  @staticmethod
-  def summarizeList(args):
-    if len(args)>32:
+  def jsonifyList(args,summarize=False):
+    if summarize and len(args)>32:
       args = [ args[i] for i in [0,1,2,3,-2,-1,0] ]
       args[3] = '(...)'
-    return [FancyLog.summarizeValue(v) for v in args]
+    return [FancyLog.jsonifyValue(v,summarize) for v in args]
 
   @staticmethod
-  def stringifyDict(kwargs):
-    return { str(k):FancyLog.stringifyValue(v) for k,v in kwargs.items() }
-    
-  @staticmethod
-  def summarizeDict(kwargs):
+  def jsonifyDict(kwargs,summarize=False):
     items = kwargs.items()
-    if len(items)>32:
+    if summarize and len(items)>32:
       items = [ items[i] for i in [0,1,2,3,-2,-1,0] ]
       items[3] = ('(...)','(...)')
-    return { str(k):FancyLog.summarizeValue(v) for k,v in items }
-
-  def appendLog(self,s):
-    lock = multiprocessing.Lock()
-    lock.acquire()
-    with codecs.open(self.logfile,'a',encoding='utf-8') as log:
-      log.write(s)
-    lock.release()
+    return { str(k):FancyLog.jsonifyValue(v,summarize) for k,v in items }
     
-  # Add an entry to the logfile
-  def addEntry(self, logId,cmd,args,kwargs, title=None,commandLine=None):
-    loglevel = self.loglevel
-    if loglevel>0:
-      print('___\nLog({}) {}'.format(logId,cmd+': '+title if title else cmd))
-      starttime = datetime.datetime.now()
-      params = {
-        'id': logId,
-        'cmd': cmd,
-        'timeStamp': starttime.isoformat(),
-      }
-    if loglevel>1:
+  def appendLog(self,s):
+    with codecs.open(self.logFile,'a',encoding='utf-8') as log:
+      log.write(s)
+    
+  # Add a task-entry to the logFile
+  def logTask(self,task,name=None):
+    logLevel = task.logLevel if task.logLevel is not None else self.logLevel
+    if not logLevel: return
+    toConsole = self.logTo & LogTo_Console
+    toFile = (self.logTo & LogTo_File) and self.logFile
+    cmd = name if name else task.getName()
+    title = task.title
+    lines = ['___\nLog({}) {}'.format(task.taskId,cmd+': '+title if title else cmd)]
+    starttime = datetime.datetime.now()
+    params = {
+      'id': task.taskId,
+      'cmd': cmd,
+      'timeStamp': starttime.isoformat()
+    }
+    if logLevel>1:
       # prepare args for json-dumping
-      if args:
-        args = self.summarizeList(args)
-        params['args'] = args,
-      if kwargs:
-        kwargs = self.summarizeDict(kwargs)
-        params['kwargs'] = kwargs
-      print('Arguments: {},{}'.format(json.dumps(args,indent=2),json.dumps(kwargs,indent=2)))
+      if task.myInput.args:
+        params['args'] = self.jsonifyList(task.myInput.args,summarize=True)
+      if task.myInput.kwargs:
+        params['kwargs'] = self.jsonifyDict(task.myInput.kwargs,summarize=True)
       if title:
         params['title'] = title
+      commandLine = task.getCommandLine()
       if commandLine:
-        print('Command line: {}'.format(commandLine))
+        lines.append('Command line: {}'.format(commandLine))
         params['commandLine'] = commandLine
-    if loglevel>0 and self.logfile:
-      # write to logfile
+    if toConsole:
+      # write to stdout
+      lines.append('Arguments: {}'.format(json.dumps(params,indent=2)))
+      print('\n'.join(lines))
+    if toFile:
+      # write to logFile
       self.appendLog('LOG.push('+json.dumps(params)+')\n')
     
-  def attachMessage(self,logId,msg, type=None):
-    params = {
-      'attachTo':logId,
-      'message':msg
-    }  
-    print('Task {} says: {}'.format(logId,msg))
-    # write to logfile
-    if not self.logfile: return
-    self.appendLog('LOG.push('+json.dumps(params,indent=2)+')\n')
-
-  def attachResult(self,logId,name,args=None,kwargs=None, tp=None,worker=''):
-    # write to logfile
-    if not self.logfile: return
-    params = {
-      'attachTo':logId,
-      'name':name,
-      'type':tp,
-      'worker':worker
-    }
-    if tp=='longtext':
-      lineCount = len(args)
-      if lineCount>12:
-        logfilesdir = op.join(self.logdir,'fancylog_files')
-        outfile = op.join(logfilesdir,'stdout_{}.txt'.format(logId))
-        with codecs.open(outfile,"w",encoding='utf-8') as fp:
-          fp.write('\n'.join(args))      
-        args = args[0:6] + ['... {} more lines ...'.format(lineCount-12)] + args[-6:0]
-        kwargs = {
-          'name':outfile,
-          'href':'file:///{}'.format(outfile)
-        }
-    if args: params['args'] = FancyLog.summarizeList(args)
-    if kwargs: params['kwargs'] = FancyLog.summarizeDict(kwargs)
-    params_json = json.dumps(params,indent=2);
-    self.appendLog('LOG.push('+params_json+')\n')
-
-  def reset(self,overwrite=False):
-    if self.logfile:
-      if op.isfile(self.logfile) and not overwrite:
-        raise Exception('Logfile "{}" already exists, use RESET to overwrite.'.format(self.logfile))
-      with codecs.open(self.logfile,'w',encoding='utf-8') as log:
-        log.write('var LOG = [];\n\n')
-      htmlsrc = op.join(op.dirname(__file__),'fancylog.html')
-      htmltgt = op.join(self.logdir,'fancylog.html')
-      if not op.isfile(htmltgt):
-        import shutil
-        shutil.copyfile(htmlsrc,htmltgt)
+  def logResult(self,task,data,name=None,tp=None):
+    logLevel = task.logLevel if task.logLevel is not None else self.logLevel
+    if not logLevel: return
+    toConsole = self.logTo & LogTo_Console
+    toFile = (self.logTo & LogTo_File) and self.logFile
+    # write to logFile
+    if toFile:
+      logId = task.taskId
+      params = {
+        'attachTo':logId,
+        'name':name,
+        'type':tp
+      }
+      summary = json.dumps(self.jsonifyValue(data,summarize=True))
+      if tp=='longtext':
+        full = json.dumps(self.jsonifyValue(data))
+        if summary != full:
+          logFilesdir = op.join(self.logDir,'fancylog_files')
+          outfile = op.join(logFilesdir,'stdout_{}.txt'.format(logId))
+          with codecs.open(outfile,"w",encoding='utf-8') as fp:
+            fp.write('\n'.join(data))      
+          result = {
+            'summary': summary,
+            'name':outfile,
+            'url':'file:///{}'.format(outfile)
+          }
+      else:
+        result = summary
+      params['result'] = result
+      params_json = json.dumps(params,indent=2);
+      self.appendLog('LOG.push('+params_json+')\n')
+    if toConsole:
+      print('Result "{}" for task "{}" is ready.'.format(name,task))
 #endclass
 
 
@@ -489,8 +491,6 @@ class FancyClean:
 
   def cleanup(self,exclude,taskKey):
     if (not self.files and not self.dirs): return (set(),set())
-    lock = multiprocessing.Lock()
-    lock.acquire()
     excludedFiles = set()
     excludedDirs = set()
     E = set()
@@ -501,7 +501,7 @@ class FancyClean:
       if F not in E:
         try:
           os.remove(f)
-          print('{} deleted file "{}".'.format(taskKey,f))
+          fancyPrint('{} deleted file "{}".'.format(taskKey,f))
         except:
           FancyReport.warning('{} tried to delete file "{}", but failed.'.format(taskKey,f))
       else:
@@ -510,10 +510,9 @@ class FancyClean:
       D = op.realpath(d)
       try:
         os.rmdir(d)
-        print('{} removed folder "{}".'.format(taskKey,d))
+        fancyPrint('{} removed folder "{}".'.format(taskKey,d))
       except:
         excludedDirs.add(d)
-    lock.release()
     return (excludedFiles,excludedDirs)
 #endclass
 
@@ -542,8 +541,8 @@ class FancyConfig:
       from lxml import etree
       tree = etree.parse(configFile)
       root = tree.getroot()
-      config = odict()
-      config[root.tag] = FancyConfig.etree_to_odict(root)
+      config = FancyConfig.etree_to_odict(root)
+      if root.tag != 'config': config = odict((root.tag,config))
       return cls(config)
     elif ext.lower() == '.json':
       return cls(json.load(configFile, object_pairs_hook=odict))
@@ -572,79 +571,138 @@ class FancyConfig:
 class FancyLink:
   def __init__(self,task,outKey):
     self.task = task # task that will supply the value
-    self.outKey = outKey # key of the above task's output
-  
+    self.outKey = outKey # key of the above task's output (or ALL for complete output)
+      
   def __getitem__(self,key):
-    return FancyLinkItem.fromParent(self.task).setInput(self,key).requestOutput(0)
+    return FancyLinkItem().setInput(self,key).linkOutput()
     
   def __repr__(self):
     return 'FancyLink<{}[{}]>'.format(self.task,self.outKey)
 #endclass
   
   
-## Base class for task input/output, consisting of list and keyword arguments
-class FancyArgs:
-  def __init__(self,*args,**kwargs):
-    self.args = list(args)
-    self.kwargs = kwargs
+## Class that represents ALL
+class ALL:
+  def __repr__(self):
+    return 'ALL'
+#endclass
 
-  def jsondump(self,fp,indent=2):
-    return json.dump(FancyLog.stringifyValue((self.args,self.kwargs)),fp,indent=indent)
+
+## Base class for task input/output, with a single argument
+class FancyValue:
+  def __init__(self,value):
+    self.value = value
+  
+  def getValue(self): 
+    return self.value
+  
+  def jsonify(self,summarize=False):
+    return FancyLog.jsonifyValue(self.getValue(),summarize)
     
+  def __repr__(self):
+    return repr(self.jsonify())
+
+  def __str__(self):
+    return str(self.jsonify(summarize=True))
+
   @staticmethod
-  def listReady(d):
-    for i,v in enumerate(d):
-      if isinstance(v,FancyLink): return False
-      elif isinstance(v,FancyArgs) and not v.ready(): return False
-    return True
-    
-  @staticmethod
-  def dictReady(d):
-    for k,v in d.items():
-      if isinstance(v,FancyLink): return False
-      elif isinstance(v,FancyArgs) and not v.ready(): return False
-    return True
+  def _ready(v):
+    return False if isinstance(v,FancyLink) else v.ready() if isinstance(v,FancyValue) else True
 
   def ready(self):
-    return self.listReady(self.args) and self.dictReady(self.kwargs)
+    return self._ready(self.value)
 
   @staticmethod
-  def listSources(d):
-    ans = set()
-    for i,v in enumerate(d):
-      if isinstance(v,FancyLink): ans.add(v.task)
-      elif isinstance(v,FancyArgs): ans.update( v.sources() )
-    return ans
-
-  @staticmethod
-  def dictSources(d):
-    ans = set()
-    for k,v in d.items():
-      if isinstance(v,FancyLink): ans.add(v.task)
-      elif isinstance(v,FancyArgs): ans.update( v.sources() )
-    return ans
-
-  @staticmethod
-  def listTempfiles(d):
-    ans = set()
-    for i,v in enumerate(d):
-      if isinstance(v,FancyTempFile): ans.add(str(v))
-      elif isinstance(v,FancyArgs): ans.update( v.tempfiles() )
-    return ans
-
-  @staticmethod
-  def dictTempfiles(d):
-    ans = set()
-    for k,v in d.items():
-      if isinstance(v,FancyTempFile): ans.add(str(v))
-      elif isinstance(v,FancyArgs): ans.update( v.tempfiles() )
-    return ans
-
-  def sources(self):
-    return self.listSources(self.args) | self.dictSources(self.kwargs)
+  def _tempfiles(ans,v):
+    if isinstance(v,FancyTempFile): ans.add(str(v))
+    elif isinstance(v,FancyValue): ans.update( v.tempfiles() )
 
   def tempfiles(self):
-    return self.listTempfiles(self.args) | self.dictTempfiles(self.kwargs)
+    ans = set()
+    self._tempfiles(ans,self.value)
+    return ans
+
+  def __getitem__(self,key):
+    if key is ALL: return self.value
+    else: return self.value[key]
+
+  def __setitem__(self,key,val):
+    if key is ALL: self.value = val
+    else: self.value[key] = val
+
+  def resolve(self):
+    if not global_taskManager.runningTask:
+      raise RuntimeError('FancyValue.resolve() must be called from within the main() method of a FancyTask.')
+    pendingTasks = global_taskManager.runningTask.initRequests(self)
+    if pendingTasks: global_taskManager.resolve( pendingTasks )
+#endclass
+
+
+## FancyValue with only positional arguments.
+class FancyList(list,FancyValue):
+  def __init__(self,*args):
+    if len(args)>1:
+      raise TypeError('FancyList takes only one argument (a list or tuple).')
+    args = args[0] if len(args)>0 else []
+    list.__init__(self,args)
+    self.args = self
+
+  def getValue(self): 
+    return self
+  
+  def ready(self):
+    for i,v in enumerate(self):
+      if not self._ready(v): return False
+    return True
+
+  def tempfiles(self):
+    ans = set()
+    for i,v in enumerate(self):
+      self._tempfiles(ans,v)
+    return ans
+#endclass
+
+
+## FancyValue with only keyword arguments.
+class FancyDict(dict,FancyValue):
+  def __init__(self,*args,**kwargs):
+    if not kwargs:
+      if len(args)>1:
+        raise TypeError('FancyDict takes only one argument (a dict).')
+      kwargs = args[0] if len(args)>0 else {}
+    dict.__init__(self,kwargs)
+    self.kwargs = self
+
+  def getValue(self):
+    return self
+  
+  def ready(self):
+    for k,v in self.items():
+      if not self._ready(v): return False
+    return True
+
+  def tempfiles(self):
+    ans = set()
+    for k,v in self.items():
+      self._tempfiles(ans,v)
+    return ans
+#endclass
+
+
+## FancyValue with positional and keyword arguments
+class FancyArgs(FancyValue):
+  def __init__(self,*args,**kwargs):
+    self.args = FancyList(args)
+    self.kwargs = FancyDict(kwargs)
+
+  def getValue(self): 
+    return dict(args=self.args,kwargs=self.kwargs)
+  
+  def ready(self):
+    return self.args.ready() and self.kwargs.ready()
+
+  def tempfiles(self):
+    return self.args.tempfiles() | self.kwargs.tempfiles()
 
   def __getitem__(self,key):
     return self.args[key] if isinstance(key,int) else self.kwargs[key]
@@ -653,95 +711,42 @@ class FancyArgs:
     if isinstance(key,(int)): self.args[key] = val
     else: self.kwargs[key] = val
     
-  def run(self,parent):
-    fancyTask = FancyFunc.fromParent(parent).setInput(*self.args,**self.kwargs).run()
-    self.args = fancyTask.myOutput.args
-    self.kwargs = fancyTask.myOutput.kwargs
+  def items(self): 
+    return self.kwargs.items()
 #endclass
     
 
-## Special case of FancyArgs, consisting of only a list.
-class FancyList(list,FancyArgs):  
-  def __init__(self,*args):
-    if len(args)>1:
-      raise RuntimeError('FancyList takes only one argument (a list or tuple).')
-    args = args[0] if len(args)>0 else []
-    list.__init__(self,args)
-    self.args = self
-    self.kwargs = {}
-
-  def ready(self):
-    return FancyArgs.listReady(self)
-
-  def sources(self):
-    return FancyArgs.listSources(self)
-
-  def files(self):
-    return FancyArgs.listFiles(self)
-#endclass
-
-
-## Special case of FancyArgs, consisting of only keyword arguments.
-class FancyDict(dict,FancyArgs):
-  def __init__(self,*args,**kwargs):
-    if not kwargs:
-      if len(args)>1:
-        raise RuntimeError('FancyDict takes only one argument (a dict).')
-      kwargs = args[0] if len(args)>0 else {}
-    dict.__init__(self,kwargs)
-    self.kwargs = self
-    self.args = []
-
-  def ready(self):
-    return FancyArgs.dictReady(self)
-
-  def sources(self):
-    return FancyArgs.dictSources(self)
-
-  def files(self):
-    return FancyArgs.dictFiles(self)
-#endclass
-
-
-## FancyInput and FancyOutput have no special meaning, but improve
-## readability when used to represent the input and output of a task.
-FancyInput  = FancyArgs
-FancyOutput = FancyArgs
-
-
-## Constants to indicate the run-status of a task
-Task_Inactive = 0
-Task_ResolvingInput = 1
-Task_Submitted = 2
-Task_ResolvingOutput = 3
-Task_Completed = 4
-
-
 ## No-frills Task class, supports parallel execution, but no logging, 
-## no tempdir, no config file
+## no tempdir, no config file.
 class Task():
   name = None
   numChildren = 0
   taskId = '0'
   parentKey = None
-  taskManager = None
   runParallel = False
-  runStatus = Task_Inactive
-  ranAt = None
-  init = None
-  main = None
-  done = None
   fancyClean = None
-  fancyLog = None
+  fancyConfig = None
+  requests = {}
+  sourceLinks = {}
+  recycle = False
+  logLevel = 0
   
-  def __init__(self,taskId=None,parentKey=None,taskManager=None):
-    if taskId: self.taskId = taskId
-    if parentKey: self.parentKey   = parentKey
-    self.taskManager = taskManager if taskManager else TaskManager()
-    self.myInput     = FancyInput()
-    self.myOutput    = FancyOutput()
-    self.requests    = {} # for each sourceKey, a list of target task ids to send the result to
-    self.sourceLinks = {} # for each sourceTask.sourceKey a list of (targetArgs,targetKey) pairs that this task receives data from
+  def __init__(self,taskId=None,taskManager=None):
+    if taskId:
+      self.taskId = taskId
+    if taskManager:
+      global global_taskManager
+      global_taskManager = taskManager
+      global_taskManager.runningTask = self
+    self.myInput = FancyArgs()
+    self.reset()
+
+  # Reset output and runStatus of a task; input is preserved.
+  def reset(self):
+    self.runStatus = Task_Reset
+    self.myOutput = None
+    if self.requests: self.requests = {} # for each sourceKey, a list of target task ids to send the result to
+    if self.sourceLinks: self.sourceLinks = {} # for each (sourceTask,sourceKey) a list of (targetArgs,targetKey) pairs that this task receives data from
 
   def getName(self):
     return self.name if self.name else self.__class__.__name__
@@ -749,11 +754,6 @@ class Task():
   def __repr__(self):
     return "%s[%s]" % (self.getName(), self.taskId)
 
-  @classmethod
-  def fromParent(cls,parent):
-    taskId = parent.newChildId()
-    return cls(taskId,str(parent))
-    
   def newChildId(self):
     self.numChildren += 1
     return self.taskId+'.'+str(self.numChildren)
@@ -762,101 +762,181 @@ class Task():
   def getInput(self,key=None):
     return self.myInput[key]
 
-  # Set (extend/update) the input for a subsequent call to run().
-  def _prepareInput(self,args,kwargs):
+  # Set the input, may be called multiple times to modify/augment inputs.
+  def setInput(self,*args,**kwargs):
     self.myInput.args.extend(args)
     self.myInput.kwargs.update(kwargs)
-
-  # Set the input for a subsequent call to run().
-  def setInput(self,*args,**kwargs):
-    self._prepareInput(args,kwargs)
     return self
 
-  # Generate a link that requests output, use this link only 
+  # Generate output request links, use these links only 
   # to return as output of a task, or to set as input to another task.
-  def requestOutput(self,key):
-    try:
-      return self.myOutput[key]
-    except:
-      return FancyLink(self,key)
+  def _linkOutput(self,*keys):
+    if keys:
+      output = FancyList()
+      for k in keys:
+        output.append(FancyLink(self,k))
+    else:
+      output = FancyValue(FancyLink(self,ALL))
+    return output
 
-  # Get an output, after calling run().
-  def getOutput(self,key=None):
-    if not self.myOutput.ready():
-      raise RuntimeError('The output of task {} contains unresolved values. Use requestOutput() instead, or run the task first.'.format(self))
-    return self.myOutput[key]
+  def linkOutput(self,*keys):
+    output = self._linkOutput(*keys)
+    return output[0] if len(keys) == 1 else output
 
-  # Initialize requests for output from upstream tasks, called when 
-  # myInput or myOutput of a task becomes available.
-  def _unresolvedTasks(self,myArgs,includeSelf):
-    def addRequest(tk,sl): # target key, source link
-      srcTask,srcKey = (sl.task,sl.outKey)
-      if srcTask.runStatus == Task_Completed:
-        print('Task {} uses output "{}" from task {}'.format(self,srcKey,srcTask))
-        myArgs[tk] = srcTask.myOutput[srcKey]    
+  requestOutput = linkOutput
+
+  # Called before getting any output.
+  def finalizeInput(self):
+    if not global_taskManager:
+      raise RuntimeError("Create an instance of FancyTaskManager before running the first task.") 
+    if global_taskManager.runningTask and global_taskManager.runningTask is not self:
+      parent = global_taskManager.runningTask
+      self._tempdir = op.join(parent._tempdir,self.tempsubdir(parent.numChildren))
+      self.taskId = parent.newChildId()
+      self.parentKey = str(parent)
+      if self.logLevel is None and parent.logLevel is not None:
+        self.logLevel = parent.logLevel # override global log-level
+      if self.fancyConfig is None and parent.fancyConfig is not None:
+        self.fancyConfig = FancyConfig.fromParent(parent)
+      if self.autoRemove is None and parent.autoRemove is not None:
+        self.autoRemove = parent.autoRemove
+    else:
+      self._tempdir = global_taskManager.workDir
+    if not self.autoRemove: 
+      self.recycle = True
+
+    # Retrieve unset inputs from configuration file or defaults
+    if self.inputs:
+      configArgs = self.fancyConfig.classDefaults(self.__class__.__name__) if self.fancyConfig else {}
+      myInput = self.myInput.kwargs
+      for key,inp in self.inputs.items():
+        if not key in myInput:
+          if key in configArgs:
+            myInput[key] = configArgs[key]
+          elif 'default' in inp:
+            if hasattr(inp['default'],'__call__'):
+              myInput[key] = inp['default'](myInput)
+            else:
+              myInput[key] = inp['default']
+          else:
+            raise RuntimeError('No default value found for input "{}" of task {}.'.format(key,self))
+    
+  # Get one or more outputs, run task if necessary.
+  def getOutput(self,*keys):
+    self.finalizeInput()
+    output = self._linkOutput(*keys)
+    pendingTasks = global_taskManager.runningTask.initRequests(output)
+    if pendingTasks: global_taskManager.resolve( pendingTasks )
+    return output[0] if len(keys) == 1 else output.getValue()
+
+  # Returns the name of the output file associated with output [key].
+  def outputFile(self,key):
+    if key in self.myInput:
+      f = self.myInput[key]
+      if isinstance(f,FancyOutputFile): return f
+      
+  # Recursively initialize output requests and return pending tasks.
+  def initRequests(self,myArgs):
+    def addRequest(inKey,srcLink): # target key, source link
+      srcTask,outKey = (srcLink.task,srcLink.outKey)
+
+      # Try to use previous result.
+      if outKey is ALL:
+        if srcTask.runStatus is Task_Completed:
+          myArgs[inKey] = srcTask.myOutput.getValue()
+          return False
       else:
-        print('Task {} requests output "{}" from task {}'.format(self,srcKey,srcTask))
-        if not srcKey in srcTask.requests: srcTask.requests[srcKey] = set()
-        srcTask.requests[srcKey].add(str(self))
-        srcId = '{}.{}'.format(srcTask,srcKey)
-        if not srcId in self.sourceLinks: self.sourceLinks[srcId] = []
-        self.sourceLinks[srcId].append((myArgs,tk))
+        try:
+          myArgs[inKey] = srcTask.myOutput[outKey]
+          return False
+        except:
+          # No previous result.
+          if srcTask.runStatus is Task_Completed:
+            # Perhaps the previous run did not return all possible outputs, rerun.
+            FancyReport.warning('Task "{}" has status completed, but requested key "{}" was not found. Will try and run the task again.'.format(srcTask,outKey))
+            srcTask.runStatus = Task_Reset
+          elif srcTask.recycle:
+            # Check for files that can be recycled
+            f = srcTask.outputFile(outKey)
+            if f and op.isfile(f):
+              fancyPrint('Recycling output file {} of task {}'.format(f,srcTask))
+              myArgs[inKey] = f
+              return False
 
-    unresolvedTasks = { str(self):self } if includeSelf else {}
+      fancyPrint('Task {} requests output "{}" from {}'.format(self,outKey,srcTask))
+      if not outKey in srcTask.requests: srcTask.requests[outKey] = set()
+      srcTask.requests[outKey].add(str(self))
+      linkKey = (str(srcTask),outKey)
+      if not linkKey in self.sourceLinks: self.sourceLinks[linkKey] = []
+      self.sourceLinks[linkKey].append((myArgs,inKey))
+      return True
+
+    pendingTasks = {}
     mySources = set()
-    for i,v in enumerate(myArgs.args):
-      if isinstance(v,FancyLink):
-        addRequest(i,v)
-        mySources.add(v.task)
-      elif isinstance(v,FancyArgs):
-        unresolvedTasks.update( self._unresolvedTasks(v,False) )
-    for k,v in myArgs.kwargs.items():
-      if isinstance(v,FancyLink):
-        addRequest(k,v)
-        mySources.add(v.task)
-      elif isinstance(v,FancyArgs):
-        unresolvedTasks.update( self._unresolvedTasks(v,False) )
+    if isinstance(myArgs,FancyValue):
+      if hasattr(myArgs,'args'):
+        for i,v in enumerate(myArgs.args):
+          if isinstance(v,FancyLink):
+            if addRequest(i,v): mySources.add(v.task)
+          elif isinstance(v,FancyValue):
+            pendingTasks.update( self.initRequests(v) )
+      if hasattr(myArgs,'kwargs'):
+        for k,v in myArgs.kwargs.items():
+          if isinstance(v,FancyLink):
+            if addRequest(k,v): mySources.add(v.task)
+          elif isinstance(v,FancyValue):
+            pendingTasks.update( self.initRequests(v) )
+      if hasattr(myArgs,'value'):
+        v = myArgs.value
+        if isinstance(v,FancyLink):
+          if addRequest(ALL,v): mySources.add(v.task)
 
     for src in mySources:
-      if src.runStatus == Task_Inactive:
+      if src.runStatus == Task_Reset:
         src.runStatus = Task_ResolvingInput
-        unresolvedTasks.update( src._unresolvedTasks(src.myInput,True) )
+        pendingTasks.update( { str(src):src } )
+        pendingTasks.update( src.initRequests(src.myInput) )
 
-    return unresolvedTasks
+    return pendingTasks
 
-  # Fulfill requests after running (some of) the unresolved tasks.
-  # sn: source task, tn: target task
+  # Fulfill requests after running (some of) the pending tasks.
   def _fulfillRequests(self,taskCache):
     affectedTasks = {}
-    for sk,targets in self.requests.items():      
-      srcId = '{}.{}'.format(self,sk)
+    for outKey,targets in self.requests.items():      
+      linkKey = (str(self),outKey)
       try:
-        val = self.myOutput if sk is None else self.myOutput[sk]
+        val = self.myOutput.getValue() if outKey is ALL else self.myOutput[outKey]
       except KeyError: 
-        raise KeyError('Task "{}" does not have the requested output "{}"'.format(self,sk))
-      for tnId in targets:
-        tn = taskCache[tnId]
-        affectedTasks[tnId] = tn
-        for (targetArgs,tk) in tn.sourceLinks[srcId]:
-          targetArgs[tk] = val
+        raise KeyError('Task "{}" does not have the requested output "{}"'.format(self,outKey))
+      for tgtKey in targets:
+        if tgtKey == str(self):
+          # special case when calling resolve()
+          tgt = self
+        else:  
+          tgt = taskCache[tgtKey]
+          affectedTasks[tgtKey] = tgt
+        for (myArgs,inKey) in tgt.sourceLinks[linkKey]:
+          myArgs[inKey] = val
     return affectedTasks
         
+  # Workhorse of the task, called in parallel mode where applicable.
+  def main(self,*args,**kwargs):
+    # OVERRIDE ME
+    return FancyArgs(*args,**kwargs)
+    
+  # Wrapper for main().
   def _main(self):
-    if self.init:
-      self.myOutput = self.init(*self.myOutput.args,**self.myOutput.kwargs)
-      if not isinstance(self.myOutput,FancyArgs):
-        raise RuntimeError('{}.init() must return a FancyOutput object.'.format(self))
-    if self.main:
-      self.myOutput = self.main(*self.myOutput.args,**self.myOutput.kwargs)
-      if not isinstance(self.myOutput,FancyArgs):
-        raise RuntimeError('{}.main() must return a FancyOutput object.'.format(self))
-    if self.done:
-      self.myOutput = self.done(*self.myOutput.args,**self.myOutput.kwargs)
-      if not isinstance(self.myOutput,FancyArgs):
-        raise RuntimeError('{}.done() must return a FancyOutput object.'.format(self))
-    self.runStatus = Task_ResolvingOutput
+    parentTask = global_taskManager.runningTask
+    global_taskManager.runningTask = self
+    if hasattr(self,'init'):
+      raise TypeError('The init() method of task {} is deprecated, use main() instead.'.format(self))
+    if hasattr(self,'done'):
+      raise TypeError('The done() method of task {} is deprecated, use main() instead.'.format(self))
+    output = self.main(*self.myInput.args,**self.myInput.kwargs)
+    self.myOutput = output if isinstance(output,FancyValue) else FancyValue(output)
+    global_taskManager.runningTask = parentTask
 
-  # call when task is completed
+  # Called when task is completed, to cleanup temporary files.
   def cleanup(self,taskCache):
     if not self.fancyClean: return
     (excludedFiles,excludedDirs) = self.fancyClean.cleanup(exclude=self.myOutput.tempfiles(),taskKey=str(self))
@@ -867,33 +947,11 @@ class Task():
         if not parent.fancyClean: parent.fancyClean = FancyClean()
         parent.fancyClean.update(excludedFiles,excludedDirs)
       except KeyError:
-        FancyReport.warning('Key "{}" not found in task cache while cleaning up {}.\nThe task cache contains {}.'.format(self.parentKey,self,self.taskManager.taskCache.values()))
+        FancyReport.warning('Key "{}" not found in task cache while cleaning up {}.\nThe task cache contains {}.'.format(self.parentKey,global_taskManager.taskCache.values()))
 
-  def runningTask(self):
-    rKey = self.taskManager.runningTask
-    tKey = str(self)
-    return tKey if not rKey or rKey == tKey else '{}, called by {}'.format(rKey,tKey)
-    
-  def logOutput(self):
-    pass
-    
-  # Run this task and return its output
-  # If set, "requests" must contains a tuple with names of requested output parameters
-  def run(self,requests=None):
-    
-    if self.parentKey:
-      self.taskManager.run(self)
-    else:
-      manager = self.taskManager
-      try: 
-        print('Running task {} in {} mode.'.format(self,manager.mode))
-        manager.run(self)
-        self.logOutput()
-        manager.report.success(*self.myOutput.args,**self.myOutput.kwargs)
-      except subprocess.CalledProcessError as e:
-        manager.report.fail('Fatal error in task {}:\n{}.'.format(self.runningTask(),e.output))
-      except:
-        manager.report.fail('Fatal error in task {}.'.format(self.runningTask()))    
+  def run(self,saveAs=None):
+    if global_taskManager is None: raise RuntimeError('TaskManager not ready. To run a task use task.runFromCommandLine().')
+    global_taskManager.run(self,saveAs)
     return self
 #endclass
 
@@ -902,42 +960,35 @@ class ArgParse:
   # Parse external inputs, from commandline or configfile.
   @classmethod
   def _parseInputs(cls,raw,cfg):
-    if 'inputs' not in cls.__dict__: return {}
+    if cls.inputs is None: return {}
     kwargs = {}
-    # first loop: command line arguments
-    inputs = cls.inputs.copy()
-    for key,inp in inputs.items():
-      if inp:
+    for key,inp in cls.inputs.items():
+      if key in cfg:
+        # typecast
+        tp = inp['type'] if 'type' in inp else str
+        kwargs[key] = tp(cfg[key])
+      elif 'default' in inp:
+        if hasattr(inp['default'],'__call__'):
+          kwargs[key] = inp['default'](kwargs)
+        else:
+          kwargs[key] = inp['default']
+    if raw is not None:
+      for key,inp in cls.inputs.items():
         if key in raw:
           # typecast
           tp = inp['type'] if 'type' in inp else str
           kwargs[key] = tp(raw[key])
-          inputs[key] = False
-    # second loop: configuration file arguments
-    for key,inp in inputs.items():
-      if inp:
-        if key in cfg:
-          # typecast
-          tp = inp['type'] if 'type' in inp else str
-          kwargs[key] = tp(cfg[key])
-          inputs[key] = False
-    # final loop: default arguments
-    for key,inp in inputs.items():
-      if inp:
-        if 'default' in inp:
-          if hasattr(inp['default'],'__call__'):
-            kwargs[key] = inp['default'](kwargs)
-          else:
-            kwargs[key] = inp['default']
+        elif key not in kwargs:
+          raise ValueError('Missing input "{}". Searched commandline arguments, configuration file and default.'.format(key))
+    
     return kwargs
 
   @classmethod
-  def parsedArgs(cls,cmdArgs,fancyConfig=None,customArgs={}):
+  def parsedArgs(cls,cmdArgs,fancyConfig=None,presets=None):
     configArgs = fancyConfig.classDefaults(cls.__name__) if fancyConfig else {}
     parsedArgs = cls._parseInputs(cmdArgs,configArgs)
-    if customArgs:
-      for k in parsedArgs: 
-        if k in customArgs: parsedArgs[k] = customArgs[k]
+    if presets:
+      for k in presets: parsedArgs[k] = presets[k]
     return parsedArgs
 #endclass
 
@@ -946,216 +997,115 @@ class ArgParse:
 class FancyTask(Task,ArgParse):
   title = None
   description = None
-  inputs = odict([
-    ('tempdir', dict( default=None,
-      help='Temp directory, to store intermediate results. Default: system tempdir.'
-    )),
-    ('logdir', dict( default=None,
-      help='Log directory, to store logfile (fancylog.js + fancylog.html) and attachments. Default: tempdir.'
-    )),
-    ('loglevel', dict( type=int, default=3,
-      help='Log level, 1 for entries, 2 for standard output, 4 for data, 8 for extra. Default: 3.'
-    )),
-    ('taskid', dict( default='0',
-      help='Hierarchical identifier of the task (e.g. "3.4.7"). Use taskid=INIT to create a new empty log (error if it exists), and taskid=RESET to reset (overwrite) an existing log.'
-    )),
-    ('configfile', dict( default=None,
-      help='Configuration file (XML or JSON), to read default parameters from. Default: None.'
-    )),
-    ('nocleanup', dict( action='store_true', default=False,
-      help='Whether to keep intermediate results. Default: False'
-    ))
-  ])
-  outfiles = None # outputs that are returned as files
-  
-  def __init__(self,tempdir,fancyConfig,fancyLog,taskId,parentKey=None,taskManager=None,autoremove=True,parsedArgs={}):
-    Task.__init__(self,taskId,parentKey,taskManager)
-    self._tempdir     = tempdir
-    self.autoremove   = autoremove
-    self.recycle      = not autoremove
-    self.fancyLog     = assertInstance(FancyLog)(fancyLog)
-    self.fancyConfig  = assertInstance(FancyConfig)(fancyConfig)
+  inputs = None 
+  logLevel = None
+  _tempdir = None
+
+  def __init__(self,main=None,logLevel=None,taskManager=None, fancyConfig=None,taskId=None,autoRemove=True):
+    if main: 
+      # called when decorating a function with @FancyTask
+      self.main = main
+      self.name = main.__name__
+    Task.__init__(self,taskId,taskManager)
+    ###cls = self.__class__
+    ### THIS MUST ALSO BE DELAYED, UNTIL THE TASK'S GETOUTPUT IS CALLED    
+    ###if global_taskManager.runningTask:
+    ###  parent = global_taskManager.runningTask
+    ###  self._tempdir = op.join(parent._tempdir,cls.tempsubdir(parent.numChildren))
+    ###  if logLevel is None: logLevel = parent.logLevel # inherit
+    ###  if logLevel is not None: self.logLevel = logLevel # override global log-level
+    ###  self.fancyConfig = FancyConfig.fromParent(parent)
+    ###  if hasattr(parent,'autoRemove'): autoRemove = parent.autoRemove
+    ###  parsedArgs = cls.parsedArgs(None,fancyConfig=self.fancyConfig)
+    ###else:
+    ### THIS IS A PROBLEM, _TEMPDIR ONLY WORKS AFTER CALLING GETOUTPUT!!
+    ###self._tempdir = global_taskManager.workDir
+    if logLevel is not None:
+      self.logLevel = logLevel
+    if fancyConfig is not None:
+      self.fancyConfig = fancyConfig
+    if autoRemove is not None:
+      self.autoRemove = autoRemove
     
     # Prepare inputs from defaults and configuration file.
-    self._prepareInput([],parsedArgs)
+    ###self.setInput(**parsedArgs)
     
+  # Make task callable, returns task instance with inputs set.
+  __call__ = Task.setInput
+    
+  def __getitem__(self,keys):
+    return self.linkOutput(*keys)
+
   @classmethod
-  def fromCommandLine(cls,**customArgs):
-    cmdArgs = cls._getParser().parse_args().__dict__;
-    parsedArgs = FancyTask.parsedArgs(cmdArgs,customArgs=customArgs)
-    taskId = parsedArgs['taskid'] if parsedArgs['taskid'] else '0'
-    logReset = False
-    if taskId == 'INIT' or taskId == 'RESET': 
-      logReset =True
-      logOverwrite = (taskId == 'RESET')
-      taskId = '0'
-    tempdir = parsedArgs['tempdir'] if parsedArgs['tempdir'] else op.join(tempfile.gettempdir(),cls.tempsubdir(taskId))
-    logdir = parsedArgs['logdir'] if parsedArgs['logdir'] else tempdir
-    logLevel = parsedArgs['loglevel']
-    fancyLog = FancyLog(logdir,logLevel)
-    if logReset:
-      fancyLog.reset(overwrite=logOverwrite)
-    noCleanup = parsedArgs['nocleanup']
-    configFile = parsedArgs['configfile']
-    fancyConfig = FancyConfig.fromFile(configFile)
+  def fromCommandLine(cls,**presets):
+    cmdArgs = FancyTaskManager._getParser(cls).parse_args().__dict__;
+
     # TaskManager setup.
-    parsedArgs = TaskManager.parsedArgs(cmdArgs,customArgs=customArgs)
-    jobServer = parsedArgs['jobserver']
-    jobAuth = parsedArgs['jobauth']
-    try: numWorkers = int(parsedArgs['numworkers'])
+    parsedArgs = FancyTaskManager.parsedArgs(cmdArgs,presets=presets)
+    workDir = parsedArgs['workDir'] 
+    if workDir is None: workDir = op.join(tempfile.gettempdir(),cls.tempsubdir(0))
+    logDir = parsedArgs['logDir']
+    logLevel = parsedArgs['logLevel']
+    logMode = parsedArgs['logMode']
+    jobServer = parsedArgs['jobServer']
+    jobAuth = parsedArgs['jobAuth']
+    try: numWorkers = int(parsedArgs['numWorkers'])
     except: numWorkers = multiprocessing.cpu_count()
-    workerType = parsedArgs['workertype'][0]
+    workerType = parsedArgs['workerType'][0]
     jsonrpc2 = parsedArgs['jsonrpc2']
-    taskManager = TaskManager(jobServer,jobAuth,numWorkers,workerType,jsonrpc2)
-    parsedArgs = cls.parsedArgs(cmdArgs,fancyConfig=fancyConfig,customArgs=customArgs)
+    global global_taskManager
+    global_taskManager = FancyTaskManager(workDir,logDir,logLevel,logMode,jobServer,jobAuth,numWorkers,workerType,jsonrpc2)
+
+    # Task setup.
+    autoRemove = parsedArgs['autoRemove']
+    configFile = parsedArgs['configFile']
+    fancyConfig = FancyConfig.fromFile(configFile)
+    parsedArgs = cls.parsedArgs(cmdArgs,fancyConfig=fancyConfig,presets=presets)
+
     # Instantiate.
     self = cls(**{
-      'tempdir': tempdir,
       'fancyConfig': fancyConfig,
-      'fancyLog': fancyLog,
-      'taskId': taskId,
-      'taskManager': taskManager,
-      'autoremove': not noCleanup,
-      'parsedArgs': parsedArgs
-    })
+      'autoRemove': autoRemove
+    })(**parsedArgs)
     return self
-
-  @staticmethod
-  def _extendParser(p,inputs):
-    for key in inputs:
-      inp = inputs[key].copy()
-      short = inp.pop('short') if 'short' in inp else key.lower()
-      positional = inp.pop('positional') if 'positional' in inp else False
-      dest = [key] if positional else ['-{}'.format(short),'--{}'.format(key)]
-      if not positional: 
-        inp['required'] = False if 'default' in inp else True
-      # ignore argument default, defer to parseInputs
-      if 'default' in inp: del inp['default']
-      # overwrite argument type, defer to parseInputs
-      if 'type' in inp: inp['type'] = str
-      p.add_argument(*dest,**inp)
     
-  @classmethod
-  def _getParser(cls):
-    p = argparse.ArgumentParser(
-      description=cls.description if cls.description else cls.title,
-      formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-      argument_default=argparse.SUPPRESS,
-      conflict_handler='resolve'
-    )
-    g = p.add_argument_group('FancyTask arguments')
-    cls._extendParser(g,FancyTask.inputs)
-    g = p.add_argument_group('TaskManager arguments')
-    cls._extendParser(g,TaskManager.inputs)
-    g = p.add_argument_group('{} module arguments'.format(cls.__name__))
-    cls._extendParser(g,cls.inputs)
-    return p
 
   @classmethod
-  def fromParent(cls,parent):
-    taskId = parent.newChildId()
-    tempdir = op.join(parent._tempdir,cls.tempsubdir(parent.numChildren))
-    fancyLog = FancyLog.fromParent(parent)
-    fancyConfig = FancyConfig.fromParent(parent)
-    parsedArgs = cls._parseInputs([],fancyConfig.classDefaults(cls.__name__))
-    args = {
-      'taskId': taskId,
-      'parentKey': str(parent),
-      'taskManager': parent.taskManager,
-      'tempdir': tempdir,
-      'fancyLog': fancyLog,
-      'fancyConfig': fancyConfig,
-      'parsedArgs': parsedArgs
-    }
-    if hasattr(parent,'autoremove'): args['autoremove'] = parent.autoremove
-    # Instantiate.
-    self = cls(**args)
-    return self
-  
+  def runFromCommandLine(cls,saveAs=None,**presets):
+    return cls.fromCommandLine(**presets).run(saveAs=saveAs)
+
   @classmethod
   def tempsubdir(cls,taskId):
     return '{}_{}'.format(taskId,cls.__name__)
 
   # tempdir(subdir) returns tempdir/subdir, and registers it for cleanup after running main()
-  def tempdir(self,subdir=None,autoremove=None):
+  def tempdir(self,subdir=None,autoRemove=None):
+    if self._tempdir is None:
+      raise RuntimeError('You can only call tempdir() from within a task.')
     d = self._tempdir
     if subdir: 
       d = op.join(d,subdir)
-    autoremove = autoremove if autoremove is not None else self.autoremove
+    autoRemove = autoRemove if autoRemove is not None else self.autoRemove
     if not self.fancyClean:
       self.fancyClean = FancyClean()
-    self.fancyClean.addCreateDir(d,autoremove)
+    self.fancyClean.addCreateDir(d,autoRemove)
     return d
 
   # tempfile(f) returns tempdir/f, and registers it for cleanup after running main()
-  def tempfile(self,f=None,ext='',autoremove=None):
+  def tempfile(self,f=None,ext='',autoRemove=None):
     if f is None:
       rand8 = ''.join(random.SystemRandom().choice(string.ascii_letters + string.digits) for _ in range(8))      
       f = '{}_{}{}'.format(self.__class__.__name__.lower(),rand8,ext)
     f = op.join(self.tempdir(),f)
-    autoremove = autoremove if autoremove is not None else self.autoremove
+    autoRemove = autoRemove if autoRemove is not None else self.autoRemove
     if not self.fancyClean:
       self.fancyClean = FancyClean()
-    self.fancyClean.addNewFile(f,autoremove)
+    self.fancyClean.addNewFile(f,autoRemove)
     return FancyTempFile(f)
   
   def getCommandLine(self):
-    #return 'python runtask.py {} -args={} -kwargs={}'.format(self.__class__.__name__,json.dumps(FancyLog.stringifyList(self.myInput.args)),json.dumps(FancyLog.stringifyDict(self.myInput.kwargs)))
-    return 'python runtask.py {} [...]'.format(self.__class__.__name__)
-
-  # Flag outputs that will be returned as files, so that they can be recycled.
-  def outputFiles(self):
-    # return self.myInput.files()
-    return FancyOutput(
-      *[ v for v in self.myInput.args if isinstance(v,FancyOutputFile) ],
-      **{ k:v for k,v in self.myInput.kwargs.items() if isinstance(v,FancyOutputFile) }
-    )
-
-  # Set the input for a subsequent call to run(); register output files for recycling.
-  def setInput(self,*args,**kwargs):
-    Task._prepareInput(self,args,kwargs)
-    self.outfiles = self.outputFiles()
-    if not isinstance(self.outfiles,FancyArgs):
-      raise TypeError('The method outputFiles() of task {} must return a FancyOutput(...) object.'.format(self))
-    return self
-
-  # Generate a link that requests output, use this link only 
-  # to return as output of a task, or to set as input to another task.
-  def requestOutput(self,key):
-    try:
-      return self.myOutput[key]
-    except:
-      if self.recycle:
-        try:
-          f = self.outfiles[key]
-          if op.isfile(f): 
-            print('Recycling file "{}" in task {}'.format(f,self))
-            return f
-        except (KeyError,IndexError):
-          pass          
-      return FancyLink(self,key)
-
-  def logEntry(self):
-    name = self.getName()
-    commandLine = self.getCommandLine()
-    self.fancyLog.addEntry(self.taskId, name,self.myInput.args,self.myInput.kwargs, title=self.title,commandLine=commandLine)
-
-  def logOutput(self):
-    self.fancyLog.attachResult(self.taskId, 'output',self.myOutput.args,self.myOutput.kwargs, worker=self.ranAt)
-#endclass
-
-
-class FancyLinkItem(FancyTask):
-  def init(self,value,key):
-    return FancyArgs(value[key])
-#endclass
-    
-
-class FancyFunc(FancyTask):
-  def setFunc(self,func,runLocal=True):
-    if runLocal: self.init = func
-    else: self.main = func
-    return self
+    #return 'python runtask.py {} [...]'.format(self.__class__.__name__)
+    return None
 #endclass
 
 
@@ -1172,10 +1122,8 @@ class FancyExec(FancyTask):
   
   def getCommandLine(self):
     try:
-      mainInput = self.init(*self.myInput.args,**self.myInput.kwargs)
-      cmd = list(mainInput.args);
-      for k,v in mainInput.kwargs.items(): cmd.extend([k,v])
-      return ' '.join(['{}'.format(v) for v in cmd])
+      cmd = self.getCommand(*self.myInput.args,**self.myInput.kwargs)
+      return ' '.join([str(v) for v in cmd])
     except:
       return FancyTask.getCommandLine(self)
 
@@ -1197,64 +1145,286 @@ class FancyExec(FancyTask):
   def setTitle(self,title):
     self.title = title
     return self
+    
+  def getCommand(self,*args,**kwargs):
+    cmd = [self.myProg] if self.myProg else []
+    cmd.extend([str(v) for v in args]);
+    for k,v in kwargs.items(): cmd.extend([str(k),str(v)])
+    return cmd
 
   def main(self,*args,**kwargs):
-    cmd = [self.myProg] if self.myProg else []
-    cmd.extend(args);
-    for k,v in kwargs.items(): cmd.extend([k,v])
+    cmd = self.getCommand(*args,**kwargs)
     opts = dict(shell=False, stderr=subprocess.STDOUT)
     if self.myCwd: opts['cwd'] = self.myCwd
     if self.myEnv: opts['env'] = self.myEnv
     self.stdout = subprocess.check_output(cmd, **opts).decode('utf-8')
-    self.fancyLog.attachResult(self.taskId, 'stdout',self.stdout.split('\n'),{}, tp='longtext', worker=self.ranAt)
-    if 'outputFiles' in self.__class__.__dict__: return self.outfiles
-    # If no output files have been defined, then echo the inputs, this is useful when an input represents the name of an output file.
+    fancyLog(self.stdout.split('\n'),'stdout','longtext')
+    # Return the inputs, this is useful when an input represents the name of an output file.
     return self.myInput
 #endclass
 
+class FancyLinkItem(FancyTask):
+  def main(self,output,key):
+    return output[key]
+    
+class TaskManager():
+  worker = None
+  runningTask = None
+  fancyLog = None
+  
+  def __init__(self,worker=None):
+    self.taskCache = {}
+    if worker: self.worker = worker
+    
+  def print(self,s):
+    task = self.runningTask;
+    if self.worker: 
+      # send to main thread
+      self.worker.putResult(Result_Print,s,str(task) if task else None)
+    else: 
+      # main thread
+      print(s)
+    
+  def log(self,data,name,tp=None):
+    task = self.runningTask;
+    if self.worker: 
+      # send to main thread
+      self.worker.putResult(Result_Log,(data,name,tp),str(task) if task else None)
+    else:
+      # main thread
+      if tp == 'task':
+        task = data
+        self.fancyLog.logTask(task,name)
+      else:
+        self.fancyLog.logResult(task,data,name,tp)
 
-#class FancyFunc(Task):
-#  def init(func,*args,**kwargs):
-#    return FancyArgs(func(*args,**kwargs))
-##endclass
+  # Submit incomplete tasks
+  def submit(self,tasks):
+    self.taskCache.update(tasks)
+    for key,task in tasks.items():
+      if task.runStatus == Task_ResolvingInput and task.myInput.ready():
+        task.runStatus = Task_Submitted
+        self.log(task,task.getName(),'task')
+        self.onInputReady(task)
+      elif task.runStatus == Task_ResolvingOutput and task.myOutput.ready():
+        self.onOutputReady(task)
+
+  # Act when the output of a task has been resolved
+  def onInputReady(self,task):
+    task._main()
+    task.runStatus = Task_ResolvingOutput    
+    pendingTasks = task.initRequests(task.myOutput)
+    if pendingTasks: self.submit(pendingTasks)
+    else: self.onOutputReady(task)
+
+  # Act when the output of a task has been resolved
+  def onOutputReady(self,task):
+    self.log(task,'output')
+    self.taskCache.pop(str(task))
+    task.runStatus = Task_Completed
+    task.cleanup(self.taskCache)
+    affectedTasks = task._fulfillRequests(self.taskCache)
+    self.submit(affectedTasks)
+    
+  # Run until completion of all pending tasks.
+  def resolve(self,pendingTasks):
+    self.submit( pendingTasks )
+#endclass
+
+
+# TaskManager that supports running tasks in parallel or distributed mode.
+class FancyTaskManager(TaskManager,ArgParse):
+  inputs = odict([
+    ('workDir', dict( default=None,
+      help='Directory to store intermediate and final results. Default: system tempdir.'
+    )),
+    ('logDir', dict( default=None,
+      help='Directory to store logFile (fancylog.js + fancylog.html) and attachments. Default: workDir.'
+    )),
+    ('logLevel', dict( type=int, default=3,
+      help='Log mode, 1 logs entries, 2 logs standard output, 4 logs data, 8 logs extras.'
+    )),
+    ('logMode', dict( type=int, default=0,
+      help='32 suppresses console printing, 64 suppresses file writing, 128 overwrites existing log file. Default: 0.'
+    )),
+    ('configFile', dict( default=None,
+      help='Configuration file (XML or JSON), to read default parameters from. Default: None.'
+    )),
+    ('autoRemove', dict( action='store_true', default=False,
+      help='Automatically remove intermediate result files. Default: False (keep everything).'
+    )),
+    ('workerType', dict( type=assertMatch('([pPtT])'), default=('P'),
+      help='Either "T" or "P": T uses multi-threading while P uses multi-processing. Use T when the pipeline mainly involves calls to external programs; use P when Python itself is used for number-crunching.'
+    )),
+    ('numWorkers', dict( type=assertType(int), default='auto',
+      help='Number of parallel workers. Default: number of CPUs.'
+    )),
+    ('jobServer', dict( type=assertJobServer, default=False,
+      help='Address (ip-address:port) of job server started with "python fancyserver.py -auth=abracadabra"'
+    )),
+    ('jobAuth', dict( default='abracadabra',
+      help='Authorization key for submitting jobs to the job manager. Default: abracadabra.'
+    )),
+    ('jsonrpc2',dict( action='store_true', default=False,
+      help='Capture output and return result in jsonrpc2 format.')
+    )
+  ])
+  workerPool = None
+  workDir = None
+  
+  def __init__(self,workDir=None,logDir=None,logLevel=3,logMode=0,jobServer=None,jobAuth='',numWorkers=0,workerType='P',jsonrpc2=False):
+    # reporting (captures output if jsonrpc2 is set)
+    self.report = FancyReport(jsonrpc2)
+
+    # storage
+    self.workDir = workDir if workDir else op.join(tempfile.gettempdir(),'FancyWork')
+
+    # logging
+    logTo = 0
+    if not (logMode & 32) and not jsonrpc2: logTo |= LogTo_Console
+    if not (logMode & 64): logTo |= LogTo_File
+    if (logMode & 128): logTo |= LogTo_Overwrite
+    if not logDir: logDir = self.workDir
+    self.fancyLog = FancyLog(logDir,logLevel,logTo)
+
+    # parallel processing
+    self.jobServer = jobServer
+    self.jobAuth = jobAuth
+    self.numWorkers = numWorkers
+    self.workerType = workerType
+    if jobServer:
+      self.workerPool = RemotePool(jobServer,jobAuth)
+    elif numWorkers>0:
+      self.workerPool = LocalPool(numWorkers,workerType)
+    self.jobCount = 0
+
+    TaskManager.__init__(self)
+
+  @staticmethod
+  def _extendParser(p,inputs):
+    for key in inputs:
+      inp = inputs[key].copy()
+      short = inp.pop('short') if 'short' in inp else key.lower()
+      positional = inp.pop('positional') if 'positional' in inp else False
+      dest = [key] if positional else ['-{}'.format(short),'--{}'.format(key)]
+      # ignore argument default, defer to parseInputs
+      if 'default' in inp: del inp['default']
+      # overwrite argument type, defer to parseInputs
+      if 'type' in inp: inp['type'] = str
+      p.add_argument(*dest,**inp)
+    
+  @classmethod
+  def _getParser(cls,TaskToRun):
+    p = argparse.ArgumentParser(
+      description=TaskToRun.description if TaskToRun.description else TaskToRun.title,
+      formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+      argument_default=argparse.SUPPRESS,
+      conflict_handler='resolve'
+    )
+    g = p.add_argument_group('TaskManager arguments')
+    cls._extendParser(g,cls.inputs)
+    g = p.add_argument_group('{} module arguments'.format(cls.__name__))
+    cls._extendParser(g,TaskToRun.inputs)
+    return p
+
+  # Run a task, and report either the result or errors.
+  def run(self,task,saveAs=None):
+    global global_taskManager
+    global_taskManager = self
+    try:
+      self.runningTask = task
+      output = task.getOutput()
+      self.report.success(output)
+      if saveAs:
+        if op.dirname(saveAs) == '': saveAs = task.tempfile(saveAs)
+        with open(saveAs,'w') as fp:
+          json.dump(FancyLog.jsonify(output),fp)
+          
+    except subprocess.CalledProcessError as e:
+      self.report.fail('Fatal error in task {}:\n{}.'.format(task,e.output))
+    except:
+      self.report.fail('Fatal error in task {}.'.format(task))
+
+  @classmethod
+  def runFromCommandLine(cls,TaskToRun,**presets):
+    TaskToRun.fromCommandLine(**presets).run()
+    
+  # Act when all input requests of a task are resolved
+  def onInputReady(self,task):
+    if self.workerPool and task.runParallel:
+      # Send task to worker pool
+      self.workerPool.putTask(task)
+      self.jobCount += 1
+    else:
+      TaskManager.onInputReady(self,task)
+
+  # Act when a remote worker delivers a task result
+  def onResultFromQueue(self,taskKey,myOutput,fancyClean):
+    self.jobCount -= 1
+    task = self.taskCache[taskKey]
+    task.myOutput = myOutput
+    if fancyClean:
+      task.fancyClean = fancyClean
+    task.runStatus = Task_ResolvingOutput
+    pendingTasks = task.initRequests(task.myOutput)
+    if pendingTasks: self.submit(pendingTasks)
+    else: self.onOutputReady(task)
+
+  # Run until completion of all pending tasks.
+  def resolve(self,pendingTasks):
+    self.jobCount = 0
+    self.submit( pendingTasks )
+    while self.jobCount > 0:
+      resultType,resultData,taskKey,workerName = self.workerPool.getResult()
+      if resultType is Result_Success:
+        myOutput,fancyClean = resultData
+        self.onResultFromQueue(taskKey,myOutput,fancyClean)
+      elif resultType is Result_Fail:
+        runningTask,msg = resultData
+        raise RuntimeError('Worker {} encountered an error while running task {}:\n{}'.format(workerName,taskKey,msg))
+      elif resultType is Result_Print:
+        fancyPrint(resultData)
+      elif resultType is Result_Log:
+        data,name,tp = resultData
+        self.log(data,name,tp)
+        
 
 ## Worker class used for parallel task execution.
 class Worker():
+  runId = None
+  
   def __init__(self, jobQueue, resultQueue):
     self.jobQueue = jobQueue
     self.resultQueue = resultQueue
-
+    
   def getTask(self):
     return self.jobQueue.get()
     
-  def putResult(self,result,runId):
+  def putResult(self,resultType,resultData,taskKey):
+    result = (resultType,resultData,taskKey,self.name)
     self.resultQueue.put(result)
 
   def run(self):
+    global global_taskManager
+    global_taskManager = TaskManager(worker=self)
     task = None
-    runId = None
     while True:
-      try:
-        (task,runId) = self.getTask()
+      try:    
+        task,self.runId = self.getTask()
         if task is None:
-          # Poison pill means shutdown
-          print('Exiting worker {}'.format(self.name))
+          fancyPrint('No task, exiting worker.')
           break
-        # task.myOutput is initialized to myInput or to init();
-        task.taskManager.runningTask = str(task)
-        task._main()
-        self.putResult((str(task),task.myOutput,task.fancyClean,self.name),runId)
-        task = False
-      except:
-        msg = FancyReport.traceback()
-        if task:
-          #title = 'Fatal error in worker {} while running task {}.'.format(self.name,task.runningTask())
-          #task.fancyLog.attachResult(task.taskId,title,msg,{}, tp='error',worker=self.name)
-          result = (None,(task.runningTask(),msg),None,self.name)
         else:
-          result = (None,(None,msg),None,self.name)
-        self.putResult(result,runId)
-        #FancyReport.fail(title)
+          fancyPrint('{} Starting task {}, running at {}'.format(datetime.datetime.now().isoformat(),task,self.name))
+        task._main()
+        resultData = (task.myOutput,task.fancyClean)
+        self.putResult(Result_Success,resultData,str(task))
+        # to be sure: cleanup
+        task = None
+        global_taskManager.taskCache = {}
+      except:
+        resultData = (global_taskManager.runningTask,FancyReport.traceback())
+        self.putResult(Result_Fail,resultData,str(task) if task else None)
 #endclass
 
 
@@ -1266,7 +1436,7 @@ class RemoteWorker(Worker,multiprocessing.Process):
     ManagerProxy.register('getJobQueue')
     ManagerProxy.register('getResultQueue')
     ManagerProxy.register('getControlQueue')
-    print('Connecting to job server {}:{}'.format(managerAddr[0],managerAddr[1]))
+    fancyPrint('Connecting to job server {}:{}'.format(managerAddr[0],managerAddr[1]))
     self.manager = ManagerProxy(address=managerAddr,authkey=managerAuth)
     self.manager.connect()
     self.jobQueue = self.manager.getJobQueue()
@@ -1274,8 +1444,9 @@ class RemoteWorker(Worker,multiprocessing.Process):
   def getTask(self):
     return pickle.loads(self.jobQueue.get())
     
-  def putResult(self,result,runId):
-    resultQueue = self.manager.getResultQueue(runId)
+  def putResult(self,resultType,resultData,taskKey):
+    result = (resultType,resultData,taskKey,self.name)
+    resultQueue = self.manager.getResultQueue(self.runId)
     resultQueue.put(pickle.dumps(result))
 #endclass
 
@@ -1326,7 +1497,7 @@ class RemotePool():
     ManagerProxy.register('getResultQueue')
     ManagerProxy.register('popResultQueue')
     ManagerProxy.register('getControlQueue')
-    print('Connecting to job server {}:{}.'.format(jobServer[0],jobServer[1]))
+    fancyPrint('Connecting to job server {}:{}.'.format(jobServer[0],jobServer[1]))
     self.manager = ManagerProxy(address=jobServer,authkey=jobAuth)
     self.manager.connect()
     multiprocessing.current_process().authkey = jobAuth
@@ -1344,104 +1515,4 @@ class RemotePool():
 
   def __del__(self):
     if self.resultQueue: self.manager.popResultQueue(self.runId)
-#endclass
-  
-
-# Connects to a local pool of workers to run tasks in parallel.
-class TaskManager(ArgParse):
-  # testing, inputs are not yet used.
-  inputs = odict([
-    ('workertype', dict( type=assertMatch('([pPtT])'), default=('P'),
-      help='Either "T" or "P": T uses multi-threading while P uses multi-processing. Use T when the pipeline mainly involves calls to external programs; use P when Python itself is used for number-crunching.'
-    )),
-    ('numworkers', dict( type=assertType(int), default='auto',
-      help='Number of parallel workers. Default: number of CPUs.'
-    )),
-    ('jobserver', dict( type=type_jobserver, default=False,
-      help='Address (ip-address:port) of job server started with "python fancyserver.py -auth=abracadabra"'
-    )),
-    ('jobauth', dict( default='abracadabra',
-      help='Authorization key for submitting jobs to the job manager. Default: abracadabra.'
-    )),
-    ('jsonrpc2',dict( action='store_true', default=False,
-      help='Capture output and return result in jsonrpc2 format.')
-    )
-  ])
-  workerPool = None
-  mode = 'serial'
-  
-  def __init__(self,jobServer=None,jobAuth='',numWorkers=0,workerType='P',jsonrpc2=False):
-    self.jobServer = jobServer
-    self.jobAuth = jobAuth
-    self.numWorkers = numWorkers
-    self.workerType = workerType
-    if jobServer:
-      self.workerPool = RemotePool(jobServer,jobAuth)
-      self.mode = 'distributed'
-    elif numWorkers>0:
-      self.workerPool = LocalPool(numWorkers,workerType)
-      self.mode = 'parallel'
-    self.report = FancyReport(jsonrpc2)
-    
-    self.taskCache = {}
-    self.runningTask = None
-    self.jobCount = 0
-    
-  # when a node gets pickled, its TaskManager is irrelevant
-  def __getstate__(self):
-    return None;
-    
-  def __setstate__(self,state):
-    self.__init__()
-
-  def nextReady(self):
-    (taskKey,myOutput,fancyClean,workerName) = self.workerPool.getResult()
-    if taskKey is None:
-      taskKey,msg = myOutput
-      raise RuntimeError('Worker {} encountered an error while running task {}.'.format(workerName,taskKey))
-    self.jobCount -= 1
-    task = self.taskCache[taskKey]
-    task.myOutput = myOutput
-    if fancyClean:
-      task.fancyClean = fancyClean
-    task.runStatus = Task_ResolvingOutput    
-    task.ranAt = workerName
-    return task
-
-  def submit(self,tasks):
-    self.taskCache.update(tasks)
-    for key,task in tasks.items():
-      if task.runStatus == Task_ResolvingInput and task.myInput.ready():
-        self.runningTask = str(task)
-        self.runStatus = Task_Submitted
-        # Initialize task
-        if task.fancyLog: task.logEntry()
-        task.myOutput = task.myInput
-        # Run task
-        if self.workerPool and task.runParallel:
-          # Queue task, run later
-          self.workerPool.putTask(task)
-          self.jobCount += 1
-        else:
-          # Run immediately and submit consecutive tasks
-          task._main()
-          self.submit( task._unresolvedTasks(task.myOutput,True) )
-      elif task.runStatus == Task_ResolvingOutput and task.myOutput.ready():
-        task = self.taskCache.pop(key)
-        task.runStatus = Task_Completed
-        task.cleanup(self.taskCache)
-        affectedTasks = task._fulfillRequests(self.taskCache)
-        self.submit(affectedTasks)
-
-  def run(self,task):
-    if task.runStatus == Task_Inactive:
-      task.runStatus = Task_ResolvingInput
-      self.submit( task._unresolvedTasks(task.myInput,True) )
-    self.runningTask = str(task)
-    while task.runStatus is not Task_Completed:
-      if self.jobCount == 0:
-        tasklist = { k:v.runStatus for k,v in self.taskCache.items() }
-        raise RuntimeError('Task {} is waiting for tasks {} to complete, but no jobs are running.'.format(runningTask,tasklist))
-      subTask = self.nextReady()
-      self.submit( subTask._unresolvedTasks( subTask.myOutput,True ) )
 #endclass
